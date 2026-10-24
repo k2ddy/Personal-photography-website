@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#080909" />
+    <meta
+      name="description"
+      content="留光——一座以照片为主角的沉浸式个人摄影作品空间。"
+    />
+    <title>留光 · 摄影作品集</title>
+    <link rel="preload" href="./assets/demo/coast-hero.webp" as="image" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#portfolio">跳到作品集</a>
+
+    <header class="site-header" aria-label="主导航">
+      <a class="wordmark" href="#home" aria-label="返回首页">
+        <span>STILL</span><i></i><span>LIGHT</span>
+      </a>
+
+      <nav class="glass-nav" aria-label="页面导航">
+        <span class="nav-liquid" aria-hidden="true"></span>
+        <a href="#home" class="nav-link is-active" data-section="home" aria-current="page">首页</a>
+        <a href="#portfolio" class="nav-link" data-section="portfolio">作品集</a>
+        <a href="#about" class="nav-link" data-section="about">关于我</a>
+      </nav>
+
+      <button class="studio-trigger glass-button" id="studioTrigger" type="button" aria-haspopup="dialog">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        <span>添加作品</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero section-observe" id="home" aria-label="首页">
+        <div class="hero-media" aria-hidden="true">
+          <img class="hero-image is-active" id="heroImageA" src="./assets/demo/coast-hero.webp" alt="" />
+          <img class="hero-image" id="heroImageB" src="./assets/demo/coast-hero.webp" alt="" />
+          <div class="hero-vignette"></div>
+          <div class="film-grain"></div>
+        </div>
+
+        <div class="hero-topline" aria-hidden="true">
+          <span>SELECTED PHOTOGRAPHS</span>
+          <span>MMXXVI</span>
+        </div>
+
+        <article class="profile-card glass-panel">
+          <button class="avatar-button" id="avatarButton" type="button" aria-label="更换个人头像">
+            <span class="avatar-fallback" id="avatarFallback">YN</span>
+            <img id="profileAvatar" alt="个人头像" hidden />
+            <span class="avatar-edit" aria-hidden="true">+</span>
+          </button>
+          <div class="profile-copy">
+            <p class="profile-kicker">PHOTOGRAPHER · VISUAL STORYTELLER</p>
+            <h1 id="profileName">你的名字</h1>
+            <p class="profile-role" id="profileRole">独立摄影 / 视觉叙事</p>
+            <p class="profile-bio" id="profileBio">在城市、自然与日常之间，记录光线短暂停留的方式。</p>
+            <p class="profile-location" id="profileLocation">
+              <span></span> Shanghai · Available worldwide
+            </p>
+          </div>
+        </article>
+
+        <div class="hero-caption">
+          <p class="hero-category" id="heroCategory">风景 · LANDSCAPE</p>
+          <h2 id="heroTitle">潮汐之上</h2>
+          <div class="hero-controls">
+            <span id="heroCounter">01 / 05</span>
+            <span class="hero-progress" aria-hidden="true"><i id="heroProgress"></i></span>
+            <button id="heroPause" type="button" aria-label="暂停轮播" aria-pressed="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path class="pause-icon" d="M9 7v10M15 7v10" />
+                <path class="play-icon" d="m9 7 8 5-8 5Z" hidden />
+              </svg>
+            </button>
+            <button id="heroNext" type="button" aria-label="下一张照片">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="m9 5 7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p class="visually-hidden" id="heroAnnouncement" aria-live="polite"></p>
+
+        <a class="scroll-cue" href="#portfolio">
+          <span>探索作品</span>
+          <i aria-hidden="true"></i>
+        </a>
+      </section>
+
+      <section class="portfolio-section section-observe" id="portfolio" aria-labelledby="portfolioTitle">
+        <div class="section-intro reveal">
+          <p class="eyebrow"><span>01</span> SELECTED WORKS</p>
+          <div class="section-heading-row">
+            <h2 id="portfolioTitle">光落下的地方</h2>
+            <p>
+              每一张照片，都是一次短暂相遇。<br />
+              悬停、靠近，然后进入它。
+            </p>
+          </div>
+        </div>
+
+        <div class="gallery-toolbar reveal">
+          <div class="filter-list" id="filterList" role="group" aria-label="作品分类筛选">
+            <button class="filter-button is-active" type="button" data-filter="全部">全部</button>
+            <button class="filter-button" type="button" data-filter="风景">风景</button>
+            <button class="filter-button" type="button" data-filter="城市">城市</button>
+            <button class="filter-button" type="button" data-filter="人物">人物</button>
+            <button class="filter-button" type="button" data-filter="静物">静物</button>
+          </div>
+          <p class="library-status" id="libraryStatus"><i></i> 演示作品 · 上传后自动替换</p>
+        </div>
+
+        <div class="gallery-grid" id="galleryGrid" aria-live="polite"></div>
+
+        <div class="empty-gallery" id="emptyGallery" hidden>
+          <p>这个分类里还没有照片。</p>
+          <button class="text-button" type="button" data-open-studio>添加第一张作品 <span>↗</span></button>
+        </div>
+      </section>
+
+      <section class="about-section section-observe" id="about" aria-labelledby="aboutTitle">
+        <div class="about-image-wrap reveal">
+          <img
+            src="./assets/demo/morning-room.webp"
+            alt="晨光穿过亚麻窗帘，投在旧墙与木椅上"
+            loading="lazy"
+          />
+          <p>LIGHT STUDY, 2026</p>
+        </div>
+
+        <div class="about-copy reveal">
+          <p class="eyebrow"><span>02</span> ABOUT</p>
+          <h2 id="aboutTitle">让照片先开口。</h2>
+          <p class="about-lead">
+            我相信真正打动人的画面，往往发生在被忽略的间隙里——一束正在消失的光、一个没有完成的动作，或一场雨之后安静下来的街道。
+          </p>
+          <p class="about-note">
+            这里是你的自述位置。下一步，我们可以一起把它改成你的真实经历、创作主题与拍摄方式，让整座网站只属于你。
+          </p>
+
+          <dl class="about-details">
+            <div>
+              <dt>关注</dt>
+              <dd>人 / 城市 / 自然 / 日常</dd>
+            </div>
+            <div>
+              <dt>所在地</dt>
+              <dd id="aboutLocation">Shanghai · China</dd>
+            </div>
+            <div>
+              <dt>合作</dt>
+              <dd>肖像 · 品牌 · 编辑项目</dd>
+            </div>
+          </dl>
+
+          <button class="contact-link" id="contactButton" type="button" disabled>
+            <span>联系我</span>
+            <small>邮箱待补充</small>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="wordmark footer-wordmark" href="#home"><span>STILL</span><i></i><span>LIGHT</span></a>
+      <p>© <span id="currentYear">2026</span> <span id="footerName">你的名字</span></p>
+      <a href="#home">回到顶部 ↑</a>
+    </footer>
+
+    <dialog class="lightbox" id="lightbox" aria-labelledby="lightboxTitle">
+      <div class="lightbox-backdrop" data-close-lightbox></div>
+      <div class="lightbox-shell">
+        <button class="lightbox-close" type="button" data-close-lightbox aria-label="关闭大图">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+        <button class="lightbox-arrow is-prev" id="lightboxPrev" type="button" aria-label="上一张">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
+        </button>
+        <figure class="lightbox-figure">
+          <img id="lightboxImage" src="" alt="" />
+          <figcaption>
+            <div>
+              <p id="lightboxCategory">风景 · 2026</p>
+              <h2 id="lightboxTitle">作品标题</h2>
+            </div>
+            <span id="lightboxCounter">01 / 05</span>
+          </figcaption>
+        </figure>
+        <button class="lightbox-arrow is-next" id="lightboxNext" type="button" aria-label="下一张">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+        </button>
+      </div>
+    </dialog>
+
+    <dialog class="studio" id="studio" aria-labelledby="studioTitle">
+      <div class="studio-backdrop" data-close-studio></div>
+      <aside class="studio-panel">
+        <header class="studio-header">
+          <div>
+            <p>PERSONAL STUDIO</p>
+            <h2 id="studioTitle">整理你的空间</h2>
+          </div>
+          <button type="button" data-close-studio aria-label="关闭工作台">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </header>
+
+        <div class="studio-tabs" role="tablist" aria-label="工作台选项">
+          <button class="studio-tab is-active" id="photosTab" type="button" role="tab" aria-selected="true" aria-controls="photosPanel" tabindex="0">作品</button>
+          <button class="studio-tab" id="profileTab" type="button" role="tab" aria-selected="false" aria-controls="profilePanel" tabindex="-1">个人资料</button>
+        </div>
+
+        <section class="studio-tabpanel is-active" id="photosPanel" role="tabpanel" aria-labelledby="photosTab">
+          <label class="upload-zone" id="uploadZone" for="photoInput">
+            <input class="visually-hidden-input" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple />
+            <span class="upload-icon">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M5 14v5h14v-5" /></svg>
+            </span>
+            <strong>拖入照片，或点击选择</strong>
+            <small>JPG / PNG / WebP / AVIF · 单张不超过 12 MB</small>
+          </label>
+          <div class="upload-message" id="uploadMessage" role="status"></div>
+
+          <div class="upload-info">
+            <span>本机图库</span>
+            <p>照片只保存在当前浏览器，不会上传到服务器。以后可升级为跨设备云端图库。</p>
+          </div>
+
+          <div class="uploaded-list" id="uploadedList"></div>
+        </section>
+
+        <section class="studio-tabpanel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>
+          <form class="profile-form" id="profileForm">
+            <label>
+              <span>名字</span>
+              <input name="name" type="text" maxlength="30" autocomplete="name" placeholder="你的名字" />
+            </label>
+            <label>
+              <span>身份</span>
+              <input name="role" type="text" maxlength="50" placeholder="独立摄影 / 视觉叙事" />
+            </label>
+            <label>
+              <span>一句话简介</span>
+              <textarea name="bio" rows="4" maxlength="140" placeholder="你希望如何介绍自己的创作？"></textarea>
+            </label>
+            <label>
+              <span>所在地</span>
+              <input name="location" type="text" maxlength="60" placeholder="Shanghai · Available worldwide" />
+            </label>
+            <label>
+              <span>联系邮箱</span>
+              <input name="email" type="email" maxlength="80" autocomplete="email" placeholder="hello@example.com" />
+            </label>
+            <label class="avatar-upload">
+              <span>个人头像</span>
+              <input id="avatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/avif" />
+            </label>
+            <div class="profile-message" id="profileMessage" role="status"></div>
+            <button class="save-profile" type="submit">保存个人资料</button>
+          </form>
+        </section>
+      </aside>
+    </dialog>
+
+    <template id="galleryCardTemplate">
+      <article class="gallery-card reveal-item">
+        <button class="gallery-open" type="button">
+          <span class="gallery-image-wrap"><img loading="lazy" alt="" /></span>
+          <span class="gallery-overlay" aria-hidden="true">
+            <span class="gallery-index"></span>
+            <span class="gallery-enter">
+              VIEW
+              <svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9" /></svg>
+            </span>
+          </span>
+        </button>
+        <footer>
+          <h3></h3>
+          <p></p>
+        </footer>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
