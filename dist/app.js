@@ -1,3 +1,6 @@
+import { extractPhotoMetadata, orientationLabel, technicalSummary } from "./metadata.js";
+import { groupPhotosByProvince, photoCountColor, projectPoint, geometryPath } from "./geography.js";
+
 const demoPhotos = [
   {
     id: "demo-coast",
@@ -8,6 +11,14 @@ const demoPhotos = [
     year: "2026",
     shape: "wide",
     alt: "暮色海岸与层叠山峦之间，一位行者沿山脊前行",
+    location: "东海岸 · 35.621°N",
+    device: "Leica Q3",
+    lens: "Summilux 28mm",
+    focalLength: "28mm",
+    aperture: "f/4",
+    shutter: "1/320s",
+    iso: "ISO 100",
+    capturedAt: "2026-08-18 18:42:00",
   },
   {
     id: "demo-train",
@@ -18,6 +29,14 @@ const demoPhotos = [
     year: "2026",
     shape: "tall",
     alt: "列车窗边的侧影与玻璃上的微弱倒影",
+    location: "沪昆线",
+    device: "Fujifilm X-T5",
+    lens: "XF 35mm F1.4",
+    focalLength: "35mm",
+    aperture: "f/1.8",
+    shutter: "1/125s",
+    iso: "ISO 800",
+    capturedAt: "2026-04-07 16:28:00",
   },
   {
     id: "demo-room",
@@ -28,6 +47,14 @@ const demoPhotos = [
     year: "2026",
     shape: "tall",
     alt: "晨光穿过亚麻窗帘，在旧墙、木地板与椅子上投下长影",
+    location: "上海",
+    device: "Sony α7C II",
+    lens: "FE 50mm F1.4 GM",
+    focalLength: "50mm",
+    aperture: "f/2.8",
+    shutter: "1/160s",
+    iso: "ISO 200",
+    capturedAt: "2026-03-12 09:17:00",
   },
   {
     id: "demo-city",
@@ -38,6 +65,14 @@ const demoPhotos = [
     year: "2026",
     shape: "wide",
     alt: "雨夜城市路口，一位骑车人穿过潮湿路面的灯光倒影",
+    location: "上海 · 静安",
+    device: "Ricoh GR IIIx",
+    lens: "GR 26.1mm F2.8",
+    focalLength: "40mm",
+    aperture: "f/2.8",
+    shutter: "1/60s",
+    iso: "ISO 1600",
+    capturedAt: "2026-06-03 22:06:00",
   },
   {
     id: "demo-lake",
@@ -48,6 +83,14 @@ const demoPhotos = [
     year: "2026",
     shape: "wide",
     alt: "黎明前的高山湖面与岸边一只红色独木舟",
+    location: "阿尔卑斯山",
+    device: "Nikon Z8",
+    lens: "NIKKOR Z 24-70mm f/2.8 S",
+    focalLength: "35mm",
+    aperture: "f/8",
+    shutter: "1/4s",
+    iso: "ISO 64",
+    capturedAt: "2026-09-21 05:46:00",
   },
 ];
 
@@ -73,7 +116,12 @@ let database;
 let uploadedPhotos = [];
 let activePhotos = [...demoPhotos];
 let displayedPhotos = [...demoPhotos];
-let currentFilter = "全部";
+const portfolioFilters = {
+  category: "全部",
+  year: "全部",
+  device: "全部",
+  orientation: "全部",
+};
 let heroIndex = 0;
 let heroTimer;
 let activeHeroNode = "a";
@@ -94,10 +142,12 @@ const heroImageA = $("#heroImageA");
 const heroImageB = $("#heroImageB");
 const heroTitle = $("#heroTitle");
 const heroCategory = $("#heroCategory");
+const heroMeta = $("#heroMeta");
 const heroCounter = $("#heroCounter");
 const heroProgress = $("#heroProgress");
 const galleryGrid = $("#galleryGrid");
 const galleryTemplate = $("#galleryCardTemplate");
+const filterPanel = $("#filterPanel");
 const libraryStatus = $("#libraryStatus");
 const emptyGallery = $("#emptyGallery");
 const studio = $("#studio");
@@ -107,6 +157,16 @@ const avatarInput = $("#avatarInput");
 const uploadMessage = $("#uploadMessage");
 const uploadZone = $("#uploadZone");
 const profileForm = $("#profileForm");
+const provinceMap = $("#provinceMap");
+const mapStatus = $("#mapStatus");
+const mapProvinceTitle = $("#mapProvinceTitle");
+const mapProvinceCount = $("#mapProvinceCount");
+const mapPhotoList = $("#mapPhotoList");
+const mapTooltip = $("#mapTooltip");
+
+let provinceGeoData = null;
+let provincePhotoGroups = new Map();
+let selectedProvinceName = "";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -282,8 +342,8 @@ function storedRecordToPhoto(record) {
     ...record,
     src: makePhotoObjectUrl(record.blob),
     thumbnailSrc: record.thumbnail ? makePhotoObjectUrl(record.thumbnail) : null,
-    category: record.category || "我的作品",
-    categoryEn: "MY WORK",
+    category: record.category || "未分类",
+    categoryEn: "PERSONAL WORK",
     year: String(record.year || new Date().getFullYear()),
     alt: record.alt || `${record.title || "摄影作品"}，由站点所有者上传`,
     isUploaded: true,
@@ -297,15 +357,160 @@ async function refreshLibrary({ resetHero = false } = {}) {
   activePhotos = uploadedPhotos.length ? uploadedPhotos : [...demoPhotos];
 
   if (resetHero || heroIndex >= activePhotos.length) heroIndex = 0;
-  updateFilterVisibility();
-  renderGallery();
+  renderFilterControls();
+  if (galleryGrid) renderGallery();
   renderUploadedList();
   updateLibraryStatus();
-  await showHero(heroIndex, true);
-  scheduleHero();
+  if (provinceMap) await renderProvinceMap();
+  if (heroImageA) {
+    await showHero(heroIndex, true);
+    scheduleHero();
+  }
+}
+
+function svgElement(tag, attributes = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+
+function mapProjection(bounds, box) {
+  const a = projectPoint([bounds[0], bounds[3]]);
+  const b = projectPoint([bounds[2], bounds[1]]);
+  const scale = Math.min(box[2] / (b[0] - a[0]), box[3] / (b[1] - a[1]));
+  const offsetX = box[0] + (box[2] - (b[0] - a[0]) * scale) / 2;
+  const offsetY = box[1] + (box[3] - (b[1] - a[1]) * scale) / 2;
+  return point => {
+    const projected = projectPoint(point);
+    return [offsetX + (projected[0] - a[0]) * scale, offsetY + (projected[1] - a[1]) * scale];
+  };
+}
+
+async function renderProvinceMap() {
+  try {
+    if (!provinceGeoData) {
+      const response = await fetch("./assets/china-provinces.geojson");
+      if (!response.ok) throw new Error("Map data unavailable");
+      provinceGeoData = await response.json();
+    }
+    const { groups, missing, unmatched } = groupPhotosByProvince(uploadedPhotos, provinceGeoData.features);
+    provincePhotoGroups = groups;
+    const counts = [...groups.values()].map(photos => photos.length);
+    const total = counts.reduce((sum, count) => sum + count, 0);
+    const visited = counts.filter(Boolean).length;
+    const max = Math.max(0, ...counts);
+    mapStatus.textContent = `${visited} 个省级地区 · ${total} 张已归属 · ${missing} 张无 GPS · ${unmatched} 张未匹配`;
+    $("#mapLegendMax").textContent = max ? `最多 ${max} 张` : "等待你的第一处足迹";
+    const select = $("#provinceSelect");
+    select.replaceChildren(new Option(`所有足迹 · ${total} 张`, ""), ...[...groups].map(([name, photos]) => new Option(`${name} · ${photos.length} 张`, name)));
+    select.value = selectedProvinceName;
+    provinceMap.replaceChildren();
+    const defs = svgElement("defs");
+    for (const [id, x, y, width, height] of [["mainMapClip", 15, 20, 970, 605], ["southMapClip", 820, 450, 150, 205]]) {
+      const clip = svgElement("clipPath", { id });
+      clip.append(svgElement("rect", { x, y, width, height }));
+      defs.append(clip);
+    }
+    provinceMap.append(defs);
+    const main = svgElement("g", { "clip-path": "url(#mainMapClip)" });
+    const inset = svgElement("g", { "clip-path": "url(#southMapClip)" });
+    const project = mapProjection([73, 18, 136, 54], [20, 25, 950, 595]);
+    const projectSouth = mapProjection([106, 3, 124, 25], [820, 450, 150, 205]);
+    for (const feature of provinceGeoData.features) {
+      const name = feature.properties.name;
+      const count = groups.get(name)?.length || 0;
+      const path = svgElement("path", {
+        d: geometryPath(feature.geometry, project),
+        class: name ? "province-shape" : "map-boundary",
+        fill: photoCountColor(count, max),
+        "fill-rule": "evenodd",
+      });
+      if (name) {
+        path.dataset.province = name;
+        path.setAttribute("role", "button");
+        path.setAttribute("tabindex", "0");
+        path.setAttribute("aria-label", `${name}，${count} 张照片`);
+        path.setAttribute("aria-pressed", String(name === selectedProvinceName));
+        const title = svgElement("title");
+        title.textContent = `${name} · ${count} 张照片`;
+        path.append(title);
+        path.addEventListener("click", () => selectProvince(name));
+        path.addEventListener("keydown", event => {
+          if (["Enter", " "].includes(event.key)) { event.preventDefault(); selectProvince(name); }
+        });
+        const hint = () => { mapTooltip.textContent = `${name} · ${count} 张照片，点击查看`; };
+        path.addEventListener("pointerenter", hint);
+        path.addEventListener("focus", hint);
+      }
+      main.append(path);
+      const southPath = svgElement("path", {
+        d: geometryPath(feature.geometry, projectSouth),
+        class: "map-inset-shape", fill: photoCountColor(count, max), "fill-rule": "evenodd",
+      });
+      inset.append(southPath);
+    }
+    provinceMap.append(main);
+    // Labels use the data's administrative centers; tiny regions remain accessible via the selector.
+    for (const feature of provinceGeoData.features) {
+      const name = feature.properties.name;
+      const center = feature.properties.centroid || feature.properties.center;
+      if (!name || !center || ["香港特别行政区", "澳门特别行政区", "天津市"].includes(name)) continue;
+      const [x, y] = project(center);
+      const label = svgElement("text", { x, y, class: "province-label", "aria-hidden": "true" });
+      label.textContent = name.replace(/维吾尔自治区|壮族自治区|回族自治区|自治区|特别行政区|省|市/g, "");
+      provinceMap.append(label);
+    }
+    provinceMap.append(svgElement("rect", { x: 820, y: 450, width: 150, height: 205, class: "map-inset-frame" }), inset);
+    const insetTitle = svgElement("text", { x: 895, y: 677, class: "province-label" });
+    insetTitle.textContent = "南海诸岛";
+    provinceMap.append(insetTitle);
+    selectProvince(selectedProvinceName);
+  } catch (error) {
+    console.warn("Could not render province map:", error);
+    mapStatus.textContent = "地图暂时未能加载，请刷新重试。";
+    mapPhotoList.textContent = "请通过本地预览服务器打开网页，以读取地图数据。";
+  }
+}
+
+function selectProvince(name) {
+  selectedProvinceName = provincePhotoGroups.has(name) ? name : "";
+  $("#provinceSelect").value = selectedProvinceName;
+  $$(".province-shape", provinceMap).forEach(path => {
+    const active = path.dataset.province === selectedProvinceName;
+    path.classList.toggle("is-selected", active);
+    path.setAttribute("aria-pressed", String(active));
+  });
+  displayedPhotos = selectedProvinceName ? provincePhotoGroups.get(selectedProvinceName)
+    : [...provincePhotoGroups.values()].flat();
+  mapProvinceTitle.textContent = selectedProvinceName || "所有足迹";
+  mapProvinceCount.textContent = `${displayedPhotos.length} 张`;
+  mapTooltip.textContent = selectedProvinceName ? `${selectedProvinceName} · ${displayedPhotos.length} 张照片` : "选择一个省份，查看在那里拍下的照片";
+  mapPhotoList.replaceChildren();
+  if (!displayedPhotos.length) {
+    const empty = document.createElement("p");
+    empty.className = "map-empty";
+    empty.textContent = selectedProvinceName ? "这里还没有留下照片。下一次出发，也许就是这里。" : "上传带 GPS 信息的原图，足迹会自动出现在地图上。演示照片不计入你的足迹。";
+    mapPhotoList.append(empty);
+  }
+  displayedPhotos.forEach((photo, index) => {
+    const button = document.createElement("button");
+    button.className = "map-photo";
+    button.type = "button";
+    const image = document.createElement("img");
+    image.src = photo.thumbnailSrc || photo.src;
+    image.alt = photo.alt;
+    image.loading = "lazy";
+    const title = document.createElement("span");
+    title.textContent = photo.title;
+    button.append(image, title);
+    button.setAttribute("aria-label", `放大查看：${photo.title}`);
+    button.addEventListener("click", () => openLightbox(index));
+    mapPhotoList.append(button);
+  });
 }
 
 function updateLibraryStatus() {
+  if (!libraryStatus) return;
   if (uploadedPhotos.length) {
     libraryStatus.innerHTML = `<i></i> 本机作品 · ${String(uploadedPhotos.length).padStart(2, "0")} 张`;
   } else {
@@ -313,42 +518,40 @@ function updateLibraryStatus() {
   }
 }
 
-function updateFilterVisibility() {
-  const categories = new Set(activePhotos.map((photo) => photo.category));
-  $$(".filter-button", $("#filterList")).forEach((button) => {
-    const shouldShow = button.dataset.filter === "全部" || categories.has(button.dataset.filter);
-    button.hidden = !shouldShow;
-  });
-
-  if (uploadedPhotos.length && !$("[data-filter='我的作品']", $("#filterList"))) {
-    const button = document.createElement("button");
-    button.className = "filter-button";
-    button.type = "button";
-    button.dataset.filter = "我的作品";
-    button.textContent = "我的作品";
-    $("#filterList").append(button);
-  }
-
-  if (!uploadedPhotos.length) {
-    $("[data-filter='我的作品']", $("#filterList"))?.remove();
-  }
-
-  if (currentFilter !== "全部" && !categories.has(currentFilter)) currentFilter = "全部";
-  syncFilterButtons();
+function setSelectOptions(select, values, currentValue) {
+  if (!select) return;
+  const available = ["全部", ...new Set(values.filter(Boolean))];
+  select.replaceChildren(...available.map((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    return option;
+  }));
+  const nextValue = available.includes(currentValue) ? currentValue : "全部";
+  select.value = nextValue;
+  portfolioFilters[select.dataset.filter] = nextValue;
 }
 
-function syncFilterButtons() {
-  $$(".filter-button", $("#filterList")).forEach((button) => {
-    const active = button.dataset.filter === currentFilter;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
+function renderFilterControls() {
+  if (!filterPanel) return;
+  setSelectOptions($("#filterCategory"), activePhotos.map((photo) => photo.category), portfolioFilters.category);
+  setSelectOptions($("#filterYear"), activePhotos.map((photo) => String(photo.year)), portfolioFilters.year);
+  setSelectOptions($("#filterDevice"), activePhotos.map((photo) => photo.device || "设备未记录"), portfolioFilters.device);
+  setSelectOptions($("#filterOrientation"), activePhotos.map((photo) => orientationLabel(photo.shape)), portfolioFilters.orientation);
 }
 
 function renderGallery() {
-  displayedPhotos = currentFilter === "全部"
-    ? [...activePhotos]
-    : activePhotos.filter((photo) => photo.category === currentFilter);
+  if (!galleryGrid || !galleryTemplate) return;
+  displayedPhotos = activePhotos.filter((photo) => {
+    const values = {
+      category: photo.category,
+      year: String(photo.year),
+      device: photo.device || "设备未记录",
+      orientation: orientationLabel(photo.shape),
+    };
+    return Object.entries(portfolioFilters)
+      .every(([key, filterValue]) => filterValue === "全部" || values[key] === filterValue);
+  });
 
   galleryGrid.replaceChildren();
   emptyGallery.hidden = displayedPhotos.length > 0;
@@ -365,7 +568,8 @@ function renderGallery() {
     image.alt = photo.alt;
     $(".gallery-index", fragment).textContent = String(index + 1).padStart(2, "0");
     $("h3", fragment).textContent = photo.title;
-    $("footer p", fragment).textContent = `${photo.categoryEn || photo.category} · ${photo.year}`;
+    $(".gallery-place", fragment).textContent = photo.location || "位置未记录";
+    $(".gallery-tech", fragment).textContent = technicalSummary(photo, 3) || `${photo.category} · ${photo.year}`;
     button.setAttribute("aria-label", `放大查看：${photo.title}`);
     button.addEventListener("click", () => openLightbox(index));
     image.addEventListener("load", layoutMasonry, { once: true });
@@ -379,16 +583,49 @@ function renderGallery() {
 }
 
 function layoutMasonry() {
-  if (!galleryGrid.children.length) return;
+  if (!galleryGrid?.children.length) return;
+  const cards = $$(".gallery-card", galleryGrid);
+  const perRow = window.innerWidth <= 620 ? 3 : window.innerWidth <= 900 ? 4 : 5;
+  const previousSpans = new Map();
+  const widths = [];
+  const shapeOf = card => card.classList.contains("shape-wide") ? "wide" : card.classList.contains("shape-tall") ? "tall" : "square";
+  const defaultSpans = perRow === 3 ? { wide: 10, tall: 5, square: 6 } : perRow === 4 ? { wide: 8, tall: 4, square: 5 } : { wide: 5, tall: 3, square: 4 };
+  for (let start = 0; start < cards.length; start += perRow) {
+    const row = cards.slice(start, start + perRow);
+    if (row.length < perRow) {
+      row.forEach(card => widths.push(previousSpans.get(shapeOf(card)) || defaultSpans[shapeOf(card)]));
+      continue;
+    }
+    const weights = row.map(card => card.classList.contains("shape-wide") ? 1.6 : card.classList.contains("shape-tall") ? (perRow === 3 ? 0.8 : 0.67) : 1);
+    const total = weights.reduce((sum, value) => sum + value, 0);
+    let remaining = 20;
+    row.forEach((card, index) => {
+      const span = index === row.length - 1 ? remaining : Math.max(2, Math.round(weights[index] / total * 20));
+      widths.push(span);
+      previousSpans.set(shapeOf(card), span);
+      remaining -= span;
+    });
+  }
   const styles = getComputedStyle(galleryGrid);
   const rowHeight = Number.parseFloat(styles.gridAutoRows) || 8;
   const rowGap = Number.parseFloat(styles.rowGap) || 0;
 
-  $$(".gallery-card", galleryGrid).forEach((card) => {
-    card.style.gridRowEnd = "auto";
-    const height = card.getBoundingClientRect().height;
+  let column = 1;
+  let rowStart = 1;
+  let nextRow = 1;
+  cards.forEach((card, index) => {
+    const width = widths[index];
+    if (column + width > 21 || (index > 0 && index % perRow === 0)) {
+      column = 1;
+      rowStart = nextRow;
+    }
+    card.style.gridColumn = `${column} / span ${width}`;
+    card.style.gridRow = "auto";
+    const height = card.offsetHeight;
     const span = Math.ceil((height + rowGap) / (rowHeight + rowGap));
-    card.style.gridRowEnd = `span ${span}`;
+    card.style.gridRow = `${rowStart} / span ${span}`;
+    nextRow = Math.max(nextRow, rowStart + span);
+    column += width;
   });
 }
 
@@ -423,12 +660,15 @@ function setImageSource(image, src, immediate = false) {
 function updateHeroMetadata(photo, index, announce) {
   heroTitle.textContent = photo.title;
   heroCategory.textContent = `${photo.category} · ${photo.categoryEn || "PHOTOGRAPH"}`;
+  if (heroMeta) {
+    heroMeta.textContent = [photo.location, technicalSummary(photo, 3)].filter(Boolean).join("  ·  ") || "拍摄信息未记录";
+  }
   heroCounter.textContent = `${String(index + 1).padStart(2, "0")} / ${String(activePhotos.length).padStart(2, "0")}`;
   if (announce) $("#heroAnnouncement").textContent = `${photo.title}。${photo.alt}`;
 }
 
 async function showHero(index, immediate = false, announce = false) {
-  if (!activePhotos.length) return false;
+  if (!heroImageA || !heroImageB || !activePhotos.length) return false;
   const transitionToken = ++heroTransitionToken;
   const nextIndex = ((index % activePhotos.length) + activePhotos.length) % activePhotos.length;
   const photo = activePhotos[nextIndex];
@@ -456,6 +696,7 @@ async function showHero(index, immediate = false, announce = false) {
 }
 
 function restartHeroProgress() {
+  if (!heroProgress) return;
   heroProgress.classList.remove("is-running");
   void heroProgress.offsetWidth;
   if (activePhotos.length > 1 && !heroPaused && !document.hidden) {
@@ -463,42 +704,24 @@ function restartHeroProgress() {
   }
 }
 
-function updateHeroPauseButton() {
-  const button = $("#heroPause");
-  button.setAttribute("aria-pressed", String(heroPaused));
-  button.setAttribute("aria-label", heroPaused ? "播放轮播" : "暂停轮播");
-  $(".pause-icon", button).hidden = heroPaused;
-  $(".play-icon", button).hidden = !heroPaused;
-}
-
-function toggleHeroPause() {
-  heroPaused = !heroPaused;
-  updateHeroPauseButton();
-  if (heroPaused) {
-    window.clearTimeout(heroTimer);
-    restartHeroProgress();
-  } else {
-    scheduleHero();
-  }
-}
-
 function scheduleHero() {
   window.clearTimeout(heroTimer);
   restartHeroProgress();
-  if (activePhotos.length <= 1 || document.hidden || heroPaused) return;
+  if (!heroImageA || $("#home")?.hidden || activePhotos.length <= 1 || document.hidden || heroPaused) return;
   heroTimer = window.setTimeout(async () => {
     const changed = await showHero(heroIndex + 1);
     if (changed) scheduleHero();
   }, HERO_INTERVAL);
 }
 
-async function stepHero() {
-  const changed = await showHero(heroIndex + 1, false, true);
+async function stepHero(direction = 1) {
+  window.clearTimeout(heroTimer);
+  const changed = await showHero(heroIndex + direction, false, true);
   if (changed) scheduleHero();
 }
 
 function openLightbox(index) {
-  if (!displayedPhotos.length) return;
+  if (!lightbox || !displayedPhotos.length) return;
   lightboxIndex = ((index % displayedPhotos.length) + displayedPhotos.length) % displayedPhotos.length;
   lastFocusedElement = document.activeElement;
   renderLightbox();
@@ -511,9 +734,30 @@ function renderLightbox() {
   const image = $("#lightboxImage");
   image.src = photo.src;
   image.alt = photo.alt;
+  const blurImage = $("#lightboxBlur");
+  if (blurImage) blurImage.src = photo.src;
   $("#lightboxTitle").textContent = photo.title;
   $("#lightboxCategory").textContent = `${photo.category} · ${photo.year}`;
   $("#lightboxCounter").textContent = `${String(lightboxIndex + 1).padStart(2, "0")} / ${String(displayedPhotos.length).padStart(2, "0")}`;
+  const metadata = $("#lightboxMeta");
+  if (metadata) {
+    const items = [
+      ["位置", photo.location || "未记录"],
+      ["设备", photo.device || "未记录"],
+      ["镜头", photo.lens || "未记录"],
+      ["参数", [photo.focalLength, photo.aperture, photo.shutter, photo.iso].filter(Boolean).join(" · ") || "未记录"],
+      ["时间", photo.capturedAt || String(photo.year)],
+    ];
+    metadata.replaceChildren(...items.map(([label, value]) => {
+      const group = document.createElement("div");
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = value;
+      group.append(term, description);
+      return group;
+    }));
+  }
   $("#lightboxPrev").hidden = displayedPhotos.length < 2;
   $("#lightboxNext").hidden = displayedPhotos.length < 2;
 
@@ -525,12 +769,13 @@ function renderLightbox() {
 }
 
 function stepLightbox(direction) {
+  if (!displayedPhotos.length) return;
   lightboxIndex = (lightboxIndex + direction + displayedPhotos.length) % displayedPhotos.length;
   renderLightbox();
 }
 
 function closeLightbox() {
-  if (lightbox.open) lightbox.close();
+  if (lightbox?.open) lightbox.close();
 }
 
 function openStudio(tab = "photos") {
@@ -559,7 +804,7 @@ function setStudioTab(tab) {
 }
 
 function unlockAfterDialog() {
-  if (!studio.open && !lightbox.open) document.body.classList.remove("is-locked");
+  if (!studio?.open && !lightbox?.open) document.body.classList.remove("is-locked");
   lastFocusedElement?.focus?.({ preventScroll: true });
 }
 
@@ -589,15 +834,18 @@ async function handlePhotoFiles(fileList) {
       }
 
       try {
+        const metadata = await extractPhotoMetadata(file);
         const optimized = await optimizePhoto(file);
+        const shape = shapeFromDimensions(optimized.width, optimized.height);
         records.push({
           id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           blob: optimized.blob,
           thumbnail: optimized.thumbnail,
           title: cleanFileName(file.name),
-          category: "我的作品",
-          year: new Date().getFullYear(),
-          shape: shapeFromDimensions(optimized.width, optimized.height),
+          category: "未分类",
+          ...metadata,
+          year: metadata.year || new Date(file.lastModified || Date.now()).getFullYear(),
+          shape,
           width: optimized.width,
           height: optimized.height,
           sourceWidth: optimized.sourceWidth,
@@ -646,6 +894,7 @@ async function deletePhoto(id) {
 
 function renderUploadedList() {
   const list = $("#uploadedList");
+  if (!list) return;
   list.replaceChildren();
 
   if (!uploadedPhotos.length) {
@@ -666,7 +915,8 @@ function renderUploadedList() {
     const title = document.createElement("strong");
     title.textContent = photo.title;
     const meta = document.createElement("small");
-    meta.textContent = `${photo.width} × ${photo.height} · ${formatFileSize(photo.size)}`;
+    const details = [photo.device, photo.aperture, photo.shutter, photo.iso].filter(Boolean).join(" · ");
+    meta.textContent = details || `${photo.width} × ${photo.height} · ${formatFileSize(photo.size)}`;
     copy.append(title, meta);
     const remove = document.createElement("button");
     remove.type = "button";
@@ -699,22 +949,24 @@ function initialsForName(name) {
 }
 
 function applyProfile(profile) {
-  $("#profileName").textContent = profile.name;
-  $("#profileRole").textContent = profile.role;
-  $("#profileBio").textContent = profile.bio;
-  $("#profileLocation").lastChild.textContent = ` ${profile.location}`;
-  $("#aboutLocation").textContent = profile.location;
-  $("#footerName").textContent = profile.name;
-  $("#avatarFallback").textContent = initialsForName(profile.name);
+  if ($("#profileName")) $("#profileName").textContent = profile.name;
+  if ($("#profileRole")) $("#profileRole").textContent = profile.role;
+  if ($("#profileBio")) $("#profileBio").textContent = profile.bio;
+  if ($("#profileLocation")) $("#profileLocation").lastChild.textContent = ` ${profile.location}`;
+  if ($("#aboutLocation")) $("#aboutLocation").textContent = profile.location;
+  if ($("#footerName")) $("#footerName").textContent = profile.name;
+  if ($("#avatarFallback")) $("#avatarFallback").textContent = initialsForName(profile.name);
 
   const contact = $("#contactButton");
-  const contactMeta = $("small", contact);
-  contact.disabled = !profile.email;
-  contactMeta.textContent = profile.email || "邮箱待补充";
-  contact.onclick = profile.email ? () => { window.location.href = `mailto:${profile.email}`; } : null;
+  if (contact) {
+    const contactMeta = $("small", contact);
+    contact.disabled = !profile.email;
+    contactMeta.textContent = profile.email || "邮箱待补充";
+    contact.onclick = profile.email ? () => { window.location.href = `mailto:${profile.email}`; } : null;
+  }
 
   for (const [key, value] of Object.entries(profile)) {
-    const field = profileForm.elements.namedItem(key);
+    const field = profileForm?.elements.namedItem(key);
     if (field) field.value = value;
   }
 }
@@ -724,11 +976,12 @@ async function loadAvatar() {
     const asset = await getProfileAsset("avatar");
     if (!asset?.blob) return;
     const image = $("#profileAvatar");
+    if (!image) return;
     if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
     avatarObjectUrl = URL.createObjectURL(asset.blob);
     image.src = avatarObjectUrl;
     image.hidden = false;
-    $("#avatarFallback").hidden = true;
+    if ($("#avatarFallback")) $("#avatarFallback").hidden = true;
   } catch {
     // Keep the initials fallback when private storage is unavailable.
   }
@@ -779,6 +1032,7 @@ function updateNavIndicator(activeLink = $(".nav-link.is-active")) {
   if (!activeLink) return;
   const nav = $(".glass-nav");
   const liquid = $(".nav-liquid");
+  if (!nav || !liquid) return;
   const navRect = nav.getBoundingClientRect();
   const linkRect = activeLink.getBoundingClientRect();
   liquid.style.width = `${linkRect.width}px`;
@@ -821,6 +1075,7 @@ function setupSectionNavigation() {
 }
 
 function setupDockEffect() {
+  if (!galleryGrid) return;
   const reset = () => {
     galleryGrid.classList.remove("is-docking");
     $$(".gallery-card", galleryGrid).forEach((card) => {
@@ -857,15 +1112,16 @@ function setupDockEffect() {
 }
 
 function bindEvents() {
-  $("#heroNext").addEventListener("click", stepHero);
-  $("#heroPause").addEventListener("click", toggleHeroPause);
-  $("#studioTrigger").addEventListener("click", () => openStudio("photos"));
+  $("#provinceSelect")?.addEventListener("change", event => selectProvince(event.target.value));
+  $("#heroNext")?.addEventListener("click", () => stepHero(1));
+  $("#heroPrev")?.addEventListener("click", () => stepHero(-1));
+  $("#studioTrigger")?.addEventListener("click", () => openStudio("photos"));
   $$('[data-open-studio]').forEach((button) => button.addEventListener("click", () => openStudio("photos")));
-  $("#avatarButton").addEventListener("click", () => openStudio("profile"));
+  $("#avatarButton")?.addEventListener("click", () => openStudio("profile"));
   $$('[data-close-studio]').forEach((element) => element.addEventListener("click", closeStudio));
   $$('[data-close-lightbox]').forEach((element) => element.addEventListener("click", closeLightbox));
-  $("#lightboxPrev").addEventListener("click", () => stepLightbox(-1));
-  $("#lightboxNext").addEventListener("click", () => stepLightbox(1));
+  $("#lightboxPrev")?.addEventListener("click", () => stepLightbox(-1));
+  $("#lightboxNext")?.addEventListener("click", () => stepLightbox(1));
   $("#photosTab").addEventListener("click", () => setStudioTab("photos"));
   $("#profileTab").addEventListener("click", () => setStudioTab("profile"));
   const studioTabs = $$(".studio-tab");
@@ -886,11 +1142,15 @@ function bindEvents() {
   photoInput.addEventListener("change", () => handlePhotoFiles(photoInput.files));
   avatarInput.addEventListener("change", () => saveAvatar(avatarInput.files[0]));
 
-  $("#filterList").addEventListener("click", (event) => {
-    const button = event.target.closest(".filter-button");
-    if (!button) return;
-    currentFilter = button.dataset.filter;
-    syncFilterButtons();
+  filterPanel?.addEventListener("change", (event) => {
+    const select = event.target.closest("select[data-filter]");
+    if (!select) return;
+    portfolioFilters[select.dataset.filter] = select.value;
+    renderGallery();
+  });
+  $("#clearFilters")?.addEventListener("click", () => {
+    Object.keys(portfolioFilters).forEach((key) => { portfolioFilters[key] = "全部"; });
+    renderFilterControls();
     renderGallery();
   });
 
@@ -908,21 +1168,21 @@ function bindEvents() {
   });
   uploadZone.addEventListener("drop", (event) => handlePhotoFiles(event.dataTransfer.files));
 
-  lightbox.addEventListener("keydown", (event) => {
+  lightbox?.addEventListener("keydown", (event) => {
     if (event.key === "ArrowLeft") stepLightbox(-1);
     if (event.key === "ArrowRight") stepLightbox(1);
   });
-  lightbox.addEventListener("touchstart", (event) => {
+  lightbox?.addEventListener("touchstart", (event) => {
     touchStartX = event.changedTouches[0]?.clientX || 0;
   }, { passive: true });
-  lightbox.addEventListener("touchend", (event) => {
+  lightbox?.addEventListener("touchend", (event) => {
     const distance = (event.changedTouches[0]?.clientX || 0) - touchStartX;
     if (Math.abs(distance) > 55) stepLightbox(distance > 0 ? -1 : 1);
   }, { passive: true });
 
-  lightbox.addEventListener("close", unlockAfterDialog);
+  lightbox?.addEventListener("close", unlockAfterDialog);
   studio.addEventListener("close", unlockAfterDialog);
-  lightbox.addEventListener("cancel", () => window.setTimeout(unlockAfterDialog));
+  lightbox?.addEventListener("cancel", () => window.setTimeout(unlockAfterDialog));
   studio.addEventListener("cancel", () => window.setTimeout(unlockAfterDialog));
 
   document.addEventListener("visibilitychange", () => {
@@ -936,7 +1196,6 @@ function bindEvents() {
   });
   motionPreference.addEventListener("change", (event) => {
     heroPaused = event.matches;
-    updateHeroPauseButton();
     scheduleHero();
   });
   window.addEventListener("beforeunload", () => {
@@ -953,8 +1212,7 @@ async function init() {
   observeReveals($$(".reveal"));
   applyProfile(loadProfile());
   heroPaused = motionPreference.matches;
-  updateHeroPauseButton();
-  $("#currentYear").textContent = String(new Date().getFullYear());
+  if ($("#currentYear")) $("#currentYear").textContent = String(new Date().getFullYear());
 
   try {
     database = await openDatabase();
@@ -964,6 +1222,7 @@ async function init() {
     uploadMessage.textContent = "当前浏览器无法使用本机图库；演示作品仍可正常浏览。";
     renderGallery();
     updateLibraryStatus();
+    if (provinceMap) await renderProvinceMap();
     await showHero(0, true);
     scheduleHero();
   }

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#080909" />
+    <meta name="description" content="留光摄影作品集——按拍摄信息浏览照片。" />
+    <title>作品集 · 留光</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="portfolio-page">
+    <a class="skip-link" href="#portfolio">跳到作品集</a>
+
+    <header class="site-header" aria-label="主导航">
+      <a class="wordmark" href="./index.html#home" aria-label="返回首页">
+        <span>STILL</span><i></i><span>LIGHT</span>
+      </a>
+
+      <nav class="glass-nav" aria-label="页面导航">
+        <span class="nav-liquid" aria-hidden="true"></span>
+        <a href="./index.html#home" class="nav-link" data-section="home">首页</a>
+        <a href="./portfolio.html" class="nav-link is-active" data-section="portfolio" aria-current="page">作品集</a>
+        <a href="./map.html" class="nav-link" data-section="map">地图</a>
+        <a href="./about.html" class="nav-link" data-section="about">关于我</a>
+      </nav>
+
+      <button class="studio-trigger glass-button" id="studioTrigger" type="button" aria-haspopup="dialog">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        <span>添加作品</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="portfolio-section section-observe" id="portfolio" aria-labelledby="portfolioTitle">
+        <div class="portfolio-masthead section-intro reveal">
+          <p class="eyebrow"><span>01</span> ARCHIVE / EXIF INDEX</p>
+          <div class="section-heading-row">
+            <h1 id="portfolioTitle">作品集</h1>
+            <p>
+              以照片本身的记录为线索。<br />
+              按类型、年份、设备与画幅浏览。
+            </p>
+          </div>
+        </div>
+
+        <div class="gallery-toolbar reveal">
+          <div class="filter-panel" id="filterPanel" aria-label="作品信息筛选">
+            <label>类型<select id="filterCategory" data-filter="category" aria-label="按类型筛选"></select></label>
+            <label>年份<select id="filterYear" data-filter="year" aria-label="按年份筛选"></select></label>
+            <label>设备<select id="filterDevice" data-filter="device" aria-label="按设备筛选"></select></label>
+            <label>画幅<select id="filterOrientation" data-filter="orientation" aria-label="按画幅筛选"></select></label>
+            <button id="clearFilters" type="button">清除筛选</button>
+          </div>
+          <p class="library-status" id="libraryStatus"><i></i> 演示作品 · 上传后自动替换</p>
+        </div>
+
+        <div class="gallery-grid" id="galleryGrid" aria-live="polite"></div>
+
+        <div class="empty-gallery" id="emptyGallery" hidden>
+          <p>这个筛选组合里还没有照片。</p>
+          <button class="text-button" type="button" data-open-studio>添加作品 <span>↗</span></button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="wordmark footer-wordmark" href="./index.html#home"><span>STILL</span><i></i><span>LIGHT</span></a>
+      <p>© <span id="currentYear">2026</span> <span id="footerName">你的名字</span></p>
+      <a href="#portfolio">回到顶部 ↑</a>
+    </footer>
+
+    <dialog class="lightbox" id="lightbox" aria-labelledby="lightboxTitle">
+      <div class="lightbox-backdrop" data-close-lightbox><img id="lightboxBlur" alt="" aria-hidden="true" /></div>
+      <div class="lightbox-shell">
+        <button class="lightbox-close" type="button" data-close-lightbox aria-label="关闭大图">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+        <button class="lightbox-arrow is-prev" id="lightboxPrev" type="button" aria-label="上一张">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
+        </button>
+        <figure class="lightbox-figure">
+          <img id="lightboxImage" src="" alt="" />
+          <figcaption>
+            <div>
+              <p id="lightboxCategory">风景 · 2026</p>
+              <h2 id="lightboxTitle">作品标题</h2>
+              <dl class="lightbox-meta" id="lightboxMeta"></dl>
+            </div>
+            <span id="lightboxCounter">01 / 05</span>
+          </figcaption>
+        </figure>
+        <button class="lightbox-arrow is-next" id="lightboxNext" type="button" aria-label="下一张">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+        </button>
+      </div>
+    </dialog>
+
+    <dialog class="studio" id="studio" aria-labelledby="studioTitle">
+      <div class="studio-backdrop" data-close-studio></div>
+      <aside class="studio-panel">
+        <header class="studio-header">
+          <div><p>PERSONAL STUDIO</p><h2 id="studioTitle">整理你的空间</h2></div>
+          <button type="button" data-close-studio aria-label="关闭工作台">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </header>
+
+        <div class="studio-tabs" role="tablist" aria-label="工作台选项">
+          <button class="studio-tab is-active" id="photosTab" type="button" role="tab" aria-selected="true" aria-controls="photosPanel" tabindex="0">作品</button>
+          <button class="studio-tab" id="profileTab" type="button" role="tab" aria-selected="false" aria-controls="profilePanel" tabindex="-1">个人资料</button>
+        </div>
+
+        <section class="studio-tabpanel is-active" id="photosPanel" role="tabpanel" aria-labelledby="photosTab">
+          <label class="upload-zone" id="uploadZone" for="photoInput">
+            <input class="visually-hidden-input" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple />
+            <span class="upload-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M5 14v5h14v-5" /></svg></span>
+            <strong>拖入照片，或点击选择</strong>
+            <small>JPEG 会自动读取 EXIF · 单张不超过 12 MB</small>
+          </label>
+          <div class="upload-message" id="uploadMessage" role="status"></div>
+          <div class="upload-info">
+            <span>照片信息</span>
+            <p>保留拍摄时间、GPS、设备、镜头、焦距、光圈、快门与 ISO；没有 EXIF 的照片显示为“未记录”。</p>
+          </div>
+          <div class="uploaded-list" id="uploadedList"></div>
+        </section>
+
+        <section class="studio-tabpanel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>
+          <form class="profile-form" id="profileForm">
+            <label><span>名字</span><input name="name" type="text" maxlength="30" autocomplete="name" placeholder="你的名字" /></label>
+            <label><span>身份</span><input name="role" type="text" maxlength="50" placeholder="独立摄影 / 视觉叙事" /></label>
+            <label><span>一句话简介</span><textarea name="bio" rows="4" maxlength="140" placeholder="你希望如何介绍自己的创作？"></textarea></label>
+            <label><span>所在地</span><input name="location" type="text" maxlength="60" placeholder="Shanghai · Available worldwide" /></label>
+            <label><span>联系邮箱</span><input name="email" type="email" maxlength="80" autocomplete="email" placeholder="hello@example.com" /></label>
+            <label class="avatar-upload"><span>个人头像</span><input id="avatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/avif" /></label>
+            <div class="profile-message" id="profileMessage" role="status"></div>
+            <button class="save-profile" type="submit">保存个人资料</button>
+          </form>
+        </section>
+      </aside>
+    </dialog>
+
+    <template id="galleryCardTemplate">
+      <article class="gallery-card reveal-item">
+        <button class="gallery-open" type="button">
+          <span class="gallery-image-wrap"><img loading="lazy" alt="" /></span>
+          <span class="gallery-overlay" aria-hidden="true">
+            <span class="gallery-index"></span>
+            <span class="gallery-enter">VIEW <svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
+          </span>
+        </button>
+        <footer>
+          <div><h3></h3><p class="gallery-place"></p></div>
+          <p class="gallery-tech"></p>
+        </footer>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
