@@ -25,7 +25,7 @@
         <a href="./about.html" class="nav-link is-active" data-section="about" aria-current="page">关于我</a>
       </nav>
 
-      <button class="studio-trigger glass-button" id="studioTrigger" type="button" aria-haspopup="dialog">
+      <button class="studio-trigger glass-button" id="studioTrigger" data-admin-only hidden type="button" aria-haspopup="dialog">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
         <span>编辑资料</span>
       </button>
@@ -65,6 +65,7 @@
     </main>
 
     <footer class="site-footer">
+      <a class="admin-entry" href="./admin.html" aria-label="管理员登录">管理</a>
       <a class="wordmark footer-wordmark" href="./index.html#home"><span>STILL</span><i></i><span>LIGHT</span></a>
       <p>© <span id="currentYear">2026</span> <span id="footerName">你的名字</span></p>
       <a href="#about">回到顶部 ↑</a>
@@ -94,10 +95,13 @@
           </label>
           <div class="upload-message" id="uploadMessage" role="status"></div>
           <div class="upload-info">
-            <span>本机图库</span>
-            <p>照片保存在当前浏览器，并同步用于首页轮播与作品集。</p>
+            <span>共享图库</span>
+            <p>作品保存到共享图库，并同步用于首页轮播、作品集与地图。</p>
           </div>
+          <button class="text-button" type="button" id="importLegacy">导入当前浏览器的旧作品</button>
+          <p class="upload-info-note">上传后会立即展示给访客；旧浏览器里的原始数据仍保留。</p>
           <div class="uploaded-list" id="uploadedList"></div>
+          <button class="text-button" type="button" id="studioLogout">退出管理员</button>
         </section>
 
         <section class="studio-tabpanel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#080909" />
+  <title>管理员 · 摄影作品集</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="admin-page">
+  <main class="admin-card glass-panel">
+    <a class="admin-back" href="./index.html">← 返回作品站</a>
+    <p class="eyebrow">PERSONAL STUDIO / ADMIN</p>
+    <h1>管理你的作品</h1>
+    <p class="admin-intro">登录后上传作品、整理图库与更新个人资料。</p>
+    <form id="adminLogin" class="profile-form" hidden>
+      <label><span>管理员密码</span><input type="password" name="password" autocomplete="current-password" required minlength="12" maxlength="256" /></label>
+      <button class="save-profile" type="submit">登录工作台</button>
+    </form>
+    <div id="adminSetup" hidden>
+      <p>首次使用，请在项目目录的终端中设置你的管理员密码：</p>
+      <code>npm run admin:password</code>
+      <p>设置完成后刷新此页。密码只保存在服务端，不会出现在网页代码中。</p>
+      <button class="save-profile" id="adminRefresh" type="button">已设置，刷新状态</button>
+    </div>
+    <div id="adminDashboard" hidden>
+      <p>已以管理员身份登录。</p>
+      <a class="admin-enter" href="./portfolio.html?manage=1">进入作品管理 ↗</a>
+      <a class="admin-enter" href="./index.html?manage=profile">编辑个人资料 ↗</a>
+      <button class="text-button" type="button" id="adminLogout">退出登录，切换为访客</button>
+    </div>
+    <p id="adminMessage" role="status">正在检查登录状态…</p>
+  </main>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

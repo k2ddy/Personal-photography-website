@@ -1,5 +1,6 @@
 import { extractPhotoMetadata, orientationLabel, technicalSummary } from "./metadata.js";
 import { groupPhotosByProvince, photoCountColor, projectPoint, geometryPath } from "./geography.js";
+import { api, blobBase64 } from "./api.js";
 
 const demoPhotos = [
   {
@@ -104,7 +105,7 @@ const defaultProfile = {
 
 const DB_NAME = "still-light-portfolio";
 const DB_VERSION = 1;
-const PHOTO_LIMIT = 24;
+const PHOTO_LIMIT = 500;
 const MAX_FILE_SIZE = 12 * 1024 * 1024;
 const DISPLAY_MAX_EDGE = 2560;
 const THUMB_MAX_EDGE = 560;
@@ -114,8 +115,11 @@ const HERO_INTERVAL = 6500;
 
 let database;
 let uploadedPhotos = [];
-let activePhotos = [...demoPhotos];
-let displayedPhotos = [...demoPhotos];
+let activePhotos = [];
+let displayedPhotos = [];
+let isAdmin = false;
+let sharedProfile = { ...defaultProfile };
+let sharedAvatar = null;
 const portfolioFilters = {
   category: "全部",
   year: "全部",
@@ -168,6 +172,51 @@ let provinceGeoData = null;
 let provincePhotoGroups = new Map();
 let selectedProvinceName = "";
 
+function setAdminMode(value) {
+  isAdmin = value;
+  document.body.classList.toggle('is-admin', value);
+  $$('[data-admin-only]').forEach(element => { element.hidden = !value; });
+  const avatar = $('#avatarButton');
+  if (avatar) {
+    avatar.disabled = !value;
+    avatar.setAttribute('aria-label', value ? '更换个人头像' : '个人头像');
+  }
+  if (!value && studio?.open) closeStudio();
+}
+
+async function checkSession() {
+  try { setAdminMode((await api('/api/session')).admin); }
+  catch { setAdminMode(false); }
+}
+
+async function publishPhoto(record) {
+  const { blob, thumbnail, ...metadata } = record;
+  return api('/api/photos', { method:'POST', body: {
+    image: await blobBase64(blob), thumbnail: await blobBase64(thumbnail || blob), metadata,
+  } });
+}
+
+async function importLegacyPhotos() {
+  if (!isAdmin || uploadBusy) return;
+  uploadBusy = true;
+  const button = $('#importLegacy'); button.disabled = true;
+  let imported = 0;
+  try {
+    database ||= await openDatabase();
+    const transaction = database.transaction('photos', 'readonly');
+    const records = await requestToPromise(transaction.objectStore('photos').getAll());
+    const migrated = new Set(JSON.parse(localStorage.getItem('still-light-migrated') || '[]'));
+    for (const record of records.filter(record => !migrated.has(record.id))) {
+      await publishPhoto(record);
+      migrated.add(record.id); imported++;
+      localStorage.setItem('still-light-migrated', JSON.stringify([...migrated]));
+    }
+    await refreshLibrary({ resetHero: true });
+    uploadMessage.textContent = imported ? `已导入 ${imported} 张旧作品，原浏览器数据仍保留。` : '当前浏览器没有尚未导入的旧作品。';
+  } catch (error) { uploadMessage.textContent = `已导入 ${imported} 张。${error.message}`; }
+  finally { uploadBusy = false; button.disabled = false; }
+}
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -203,16 +252,16 @@ function transactionDone(transaction) {
 }
 
 async function getStoredPhotos() {
-  if (!database) return [];
-  const transaction = database.transaction("photos", "readonly");
-  const records = await requestToPromise(transaction.objectStore("photos").getAll());
-  return records.sort((a, b) => b.createdAt - a.createdAt);
+  const data = await api('/api/library');
+  sharedProfile = { ...defaultProfile, ...data.profile };
+  sharedAvatar = data.avatar;
+  applyProfile(sharedProfile);
+  await loadAvatar();
+  return data.photos;
 }
 
 async function getStoredPhotoCount() {
-  if (!database) return 0;
-  const transaction = database.transaction("photos", "readonly");
-  return requestToPromise(transaction.objectStore("photos").count());
+  return (await api('/api/library')).photos.length;
 }
 
 async function getProfileAsset(id) {
@@ -340,8 +389,8 @@ async function optimizePhoto(file) {
 function storedRecordToPhoto(record) {
   return {
     ...record,
-    src: makePhotoObjectUrl(record.blob),
-    thumbnailSrc: record.thumbnail ? makePhotoObjectUrl(record.thumbnail) : null,
+    src: record.src,
+    thumbnailSrc: record.thumbnailSrc,
     category: record.category || "未分类",
     categoryEn: "PERSONAL WORK",
     year: String(record.year || new Date().getFullYear()),
@@ -354,7 +403,7 @@ async function refreshLibrary({ resetHero = false } = {}) {
   const records = await getStoredPhotos();
   revokePhotoObjectUrls();
   uploadedPhotos = records.map(storedRecordToPhoto);
-  activePhotos = uploadedPhotos.length ? uploadedPhotos : [...demoPhotos];
+  activePhotos = uploadedPhotos;
 
   if (resetHero || heroIndex >= activePhotos.length) heroIndex = 0;
   renderFilterControls();
@@ -363,6 +412,16 @@ async function refreshLibrary({ resetHero = false } = {}) {
   updateLibraryStatus();
   if (provinceMap) await renderProvinceMap();
   if (heroImageA) {
+    heroImageA.hidden = !activePhotos.length;
+    heroImageB.hidden = !activePhotos.length;
+    $("#heroPrev").hidden = !activePhotos.length;
+    $("#heroNext").hidden = !activePhotos.length;
+    if (!activePhotos.length) {
+      heroTitle.textContent = '作品准备中';
+      heroCategory.textContent = 'PHOTOGRAPHY';
+      heroMeta.textContent = '新的光影，即将抵达。';
+      heroCounter.textContent = '00 / 00';
+    }
     await showHero(heroIndex, true);
     scheduleHero();
   }
@@ -489,7 +548,7 @@ function selectProvince(name) {
   if (!displayedPhotos.length) {
     const empty = document.createElement("p");
     empty.className = "map-empty";
-    empty.textContent = selectedProvinceName ? "这里还没有留下照片。下一次出发，也许就是这里。" : "上传带 GPS 信息的原图，足迹会自动出现在地图上。演示照片不计入你的足迹。";
+    empty.textContent = selectedProvinceName ? "这里还没有留下照片。下一次出发，也许就是这里。" : "还没有带位置信息的作品，新的足迹正在路上。";
     mapPhotoList.append(empty);
   }
   displayedPhotos.forEach((photo, index) => {
@@ -512,9 +571,9 @@ function selectProvince(name) {
 function updateLibraryStatus() {
   if (!libraryStatus) return;
   if (uploadedPhotos.length) {
-    libraryStatus.innerHTML = `<i></i> 本机作品 · ${String(uploadedPhotos.length).padStart(2, "0")} 张`;
+    libraryStatus.innerHTML = `<i></i> 摄影作品 · ${String(uploadedPhotos.length).padStart(2, "0")} 张`;
   } else {
-    libraryStatus.innerHTML = "<i></i> 演示作品 · 上传后自动替换";
+    libraryStatus.innerHTML = "<i></i> 作品正在整理";
   }
 }
 
@@ -779,6 +838,7 @@ function closeLightbox() {
 }
 
 function openStudio(tab = "photos") {
+  if (!isAdmin) return;
   lastFocusedElement = document.activeElement;
   setStudioTab(tab);
   if (!studio.open) studio.showModal();
@@ -810,7 +870,7 @@ function unlockAfterDialog() {
 
 async function handlePhotoFiles(fileList) {
   const incoming = [...fileList];
-  if (!incoming.length || !database || uploadBusy) return;
+  if (!incoming.length || !isAdmin || uploadBusy) return;
 
   uploadBusy = true;
   photoInput.disabled = true;
@@ -823,7 +883,7 @@ async function handlePhotoFiles(fileList) {
   try {
     const currentCount = await getStoredPhotoCount();
     const availableSlots = Math.max(0, PHOTO_LIMIT - currentCount);
-    const files = incoming.slice(0, availableSlots);
+    const files = incoming.slice(0, Math.min(availableSlots, 24));
     skipped = incoming.length - files.length;
     const records = [];
 
@@ -861,11 +921,10 @@ async function handlePhotoFiles(fileList) {
     }
 
     if (records.length) {
-      const transaction = database.transaction("photos", "readwrite");
-      const store = transaction.objectStore("photos");
-      records.forEach((record) => store.put(record));
-      await transactionDone(transaction);
-      imported = records.length;
+      for (const record of records) {
+        await publishPhoto(record);
+        imported++;
+      }
       await refreshLibrary({ resetHero: true });
     }
 
@@ -873,8 +932,8 @@ async function handlePhotoFiles(fileList) {
       ? `已加入 ${imported} 张照片${skipped ? `，跳过 ${skipped} 张` : ""}。`
       : "没有可加入的照片，请检查格式、尺寸与文件大小。";
   } catch (error) {
-    console.warn("Could not save local photos:", error);
-    uploadMessage.textContent = "本机存储空间不足，照片没有写入。请移除部分作品后重试。";
+    uploadMessage.textContent = `已保存 ${imported} 张。${error.message}`;
+    if (imported) await refreshLibrary({ resetHero: true }).catch(() => {});
   } finally {
     uploadBusy = false;
     photoInput.disabled = false;
@@ -885,11 +944,11 @@ async function handlePhotoFiles(fileList) {
 }
 
 async function deletePhoto(id) {
-  if (!database || !window.confirm("从当前浏览器的图库中移除这张照片？")) return;
-  const transaction = database.transaction("photos", "readwrite");
-  transaction.objectStore("photos").delete(id);
-  await transactionDone(transaction);
-  await refreshLibrary({ resetHero: true });
+  if (!isAdmin || !window.confirm("从公开图库中移除这张照片？访客将不再看到它。")) return;
+  try {
+    await api(`/api/photos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await refreshLibrary({ resetHero: true });
+  } catch (error) { uploadMessage.textContent = error.message; }
 }
 
 function renderUploadedList() {
@@ -900,7 +959,7 @@ function renderUploadedList() {
   if (!uploadedPhotos.length) {
     const empty = document.createElement("p");
     empty.className = "uploaded-empty";
-    empty.textContent = "尚未添加照片，当前站点使用演示作品。";
+    empty.textContent = "尚未添加作品。上传后会同步显示给所有访客。";
     list.append(empty);
     return;
   }
@@ -916,7 +975,7 @@ function renderUploadedList() {
     title.textContent = photo.title;
     const meta = document.createElement("small");
     const details = [photo.device, photo.aperture, photo.shutter, photo.iso].filter(Boolean).join(" · ");
-    meta.textContent = details || `${photo.width} × ${photo.height} · ${formatFileSize(photo.size)}`;
+    meta.textContent = details || [photo.width && photo.height ? `${photo.width} × ${photo.height}` : '', formatFileSize(photo.size)].filter(Boolean).join(' · ');
     copy.append(title, meta);
     const remove = document.createElement("button");
     remove.type = "button";
@@ -933,11 +992,7 @@ function formatFileSize(bytes = 0) {
 }
 
 function loadProfile() {
-  try {
-    return { ...defaultProfile, ...JSON.parse(localStorage.getItem("still-light-profile") || "{}") };
-  } catch {
-    return { ...defaultProfile };
-  }
+  return sharedProfile;
 }
 
 function initialsForName(name) {
@@ -973,15 +1028,11 @@ function applyProfile(profile) {
 
 async function loadAvatar() {
   try {
-    const asset = await getProfileAsset("avatar");
-    if (!asset?.blob) return;
     const image = $("#profileAvatar");
     if (!image) return;
-    if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
-    avatarObjectUrl = URL.createObjectURL(asset.blob);
-    image.src = avatarObjectUrl;
-    image.hidden = false;
-    if ($("#avatarFallback")) $("#avatarFallback").hidden = true;
+    if (sharedAvatar) image.src = sharedAvatar;
+    image.hidden = !sharedAvatar;
+    if ($("#avatarFallback")) $("#avatarFallback").hidden = !!sharedAvatar;
   } catch {
     // Keep the initials fallback when private storage is unavailable.
   }
@@ -989,7 +1040,7 @@ async function loadAvatar() {
 
 async function saveAvatar(file) {
   const message = $("#profileMessage");
-  if (!file || !database || !file.type.startsWith("image/") || file.size > MAX_FILE_SIZE) {
+  if (!file || !isAdmin || !file.type.startsWith("image/") || file.size > MAX_FILE_SIZE) {
     message.textContent = "头像需要是 12 MB 以内的图片。";
     return;
   }
@@ -997,9 +1048,8 @@ async function saveAvatar(file) {
   message.textContent = "正在优化头像…";
   try {
     const optimized = await optimizePhoto(file);
-    const transaction = database.transaction("profileAssets", "readwrite");
-    transaction.objectStore("profileAssets").put({ id: "avatar", blob: optimized.thumbnail, updatedAt: Date.now() });
-    await transactionDone(transaction);
+    const result = await api('/api/avatar', { method:'PUT', body:{ image: await blobBase64(optimized.thumbnail) } });
+    sharedAvatar = result.avatar;
     await loadAvatar();
     message.textContent = "头像已更新。";
   } catch (error) {
@@ -1010,8 +1060,9 @@ async function saveAvatar(file) {
   }
 }
 
-function saveProfile(event) {
+async function saveProfile(event) {
   event.preventDefault();
+  if (!isAdmin) return;
   const formData = new FormData(profileForm);
   const profile = {
     name: String(formData.get("name") || "").trim() || defaultProfile.name,
@@ -1020,12 +1071,15 @@ function saveProfile(event) {
     location: String(formData.get("location") || "").trim() || defaultProfile.location,
     email: String(formData.get("email") || "").trim(),
   };
-  localStorage.setItem("still-light-profile", JSON.stringify(profile));
-  applyProfile(profile);
   const button = $(".save-profile", profileForm);
   const original = button.textContent;
-  button.textContent = "已保存";
-  window.setTimeout(() => { button.textContent = original; }, 1200);
+  button.disabled = true;
+  try {
+    sharedProfile = await api('/api/profile', { method:'PUT', body: profile });
+    applyProfile(sharedProfile);
+    $("#profileMessage").textContent = '资料已保存，访客将看到更新后的内容。';
+  } catch (error) { $("#profileMessage").textContent = error.message; }
+  finally { button.disabled = false; button.textContent = original; }
 }
 
 function updateNavIndicator(activeLink = $(".nav-link.is-active")) {
@@ -1112,6 +1166,14 @@ function setupDockEffect() {
 }
 
 function bindEvents() {
+  window.addEventListener('admin-session-expired', () => setAdminMode(false));
+  window.addEventListener('focus', checkSession);
+  window.addEventListener('pageshow', event => { if (event.persisted) checkSession(); });
+  $('#importLegacy')?.addEventListener('click', importLegacyPhotos);
+  $('#studioLogout')?.addEventListener('click', async () => {
+    try { await api('/api/logout', { method:'POST' }); setAdminMode(false); }
+    catch (error) { uploadMessage.textContent = error.message; }
+  });
   $("#provinceSelect")?.addEventListener("change", event => selectProvince(event.target.value));
   $("#heroNext")?.addEventListener("click", () => stepHero(1));
   $("#heroPrev")?.addEventListener("click", () => stepHero(-1));
@@ -1215,16 +1277,18 @@ async function init() {
   if ($("#currentYear")) $("#currentYear").textContent = String(new Date().getFullYear());
 
   try {
-    database = await openDatabase();
-    await Promise.all([refreshLibrary({ resetHero: true }), loadAvatar()]);
+    await checkSession();
+    await refreshLibrary({ resetHero: true });
+    const manage = new URLSearchParams(location.search).get('manage');
+    if (isAdmin && manage) openStudio(manage === 'profile' ? 'profile' : 'photos');
   } catch (error) {
-    console.warn("Private gallery storage is unavailable:", error);
-    uploadMessage.textContent = "当前浏览器无法使用本机图库；演示作品仍可正常浏览。";
+    setAdminMode(false);
+    if (libraryStatus) libraryStatus.textContent = '图库暂时无法加载，请稍后刷新。';
+    if (heroTitle) heroTitle.textContent = '图库暂时无法加载';
+    if (heroMeta) heroMeta.textContent = '请稍后刷新。';
+    uploadMessage.textContent = error.message;
     renderGallery();
-    updateLibraryStatus();
     if (provinceMap) await renderProvinceMap();
-    await showHero(0, true);
-    scheduleHero();
   }
 
   requestAnimationFrame(() => updateNavIndicator());

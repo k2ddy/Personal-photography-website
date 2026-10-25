@@ -28,7 +28,7 @@
         <a href="./about.html" class="nav-link" data-section="about">关于我</a>
       </nav>
 
-      <button class="studio-trigger glass-button" id="studioTrigger" type="button" aria-haspopup="dialog">
+      <button class="studio-trigger glass-button" id="studioTrigger" data-admin-only hidden type="button" aria-haspopup="dialog">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14" />
         </svg>
@@ -39,8 +39,8 @@
     <main>
       <section class="hero section-observe" id="home" aria-label="首页">
         <div class="hero-media" aria-hidden="true">
-          <img class="hero-image is-active" id="heroImageA" src="./assets/demo/coast-hero.webp" alt="" />
-          <img class="hero-image" id="heroImageB" src="./assets/demo/coast-hero.webp" alt="" />
+          <img class="hero-image is-active" id="heroImageA" alt="" hidden />
+          <img class="hero-image" id="heroImageB" alt="" hidden />
           <div class="hero-vignette"></div>
           <div class="film-grain"></div>
         </div>
@@ -51,10 +51,10 @@
         </div>
 
         <article class="profile-card glass-panel">
-          <button class="avatar-button" id="avatarButton" type="button" aria-label="更换个人头像">
+          <button class="avatar-button" id="avatarButton" disabled type="button" aria-label="更换个人头像">
             <span class="avatar-fallback" id="avatarFallback">YN</span>
             <img id="profileAvatar" alt="个人头像" hidden />
-            <span class="avatar-edit" aria-hidden="true">+</span>
+            <span class="avatar-edit" data-admin-only hidden aria-hidden="true">+</span>
           </button>
           <div class="profile-copy">
             <p class="profile-kicker">PHOTOGRAPHER · VISUAL STORYTELLER</p>
@@ -68,11 +68,11 @@
         </article>
 
         <div class="hero-caption">
-          <p class="hero-category" id="heroCategory">风景 · LANDSCAPE</p>
-          <h2 id="heroTitle">潮汐之上</h2>
-          <p class="hero-meta" id="heroMeta">东海岸 · Leica Q3 · 28mm · f/4</p>
+          <p class="hero-category" id="heroCategory">PHOTOGRAPHY</p>
+          <h2 id="heroTitle">作品准备中</h2>
+          <p class="hero-meta" id="heroMeta">新的光影，即将抵达。</p>
           <div class="hero-controls">
-            <span id="heroCounter">01 / 05</span>
+            <span id="heroCounter">00 / 00</span>
             <span class="hero-progress" aria-hidden="true"><i id="heroProgress"></i></span>
             <button id="heroPrev" type="button" aria-label="上一张照片">
               <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -114,20 +114,21 @@
             <label>画幅<select id="filterOrientation" data-filter="orientation"></select></label>
             <button id="clearFilters" type="button">清除筛选</button>
           </div>
-          <p class="library-status" id="libraryStatus"><i></i> 演示作品 · 上传后自动替换</p>
+          <p class="library-status" id="libraryStatus"><i></i> 正在加载作品…</p>
         </div>
 
         <div class="gallery-grid" id="galleryGrid" aria-live="polite"></div>
 
         <div class="empty-gallery" id="emptyGallery" hidden>
-          <p>这个分类里还没有照片。</p>
-          <button class="text-button" type="button" data-open-studio>添加第一张作品 <span>↗</span></button>
+          <p>暂时没有符合条件的作品。</p>
+          <button class="text-button" type="button" data-open-studio data-admin-only hidden>添加第一张作品 <span>↗</span></button>
         </div>
       </section>
 
     </main>
 
     <footer class="site-footer">
+      <a class="admin-entry" href="./admin.html" aria-label="管理员登录">管理</a>
       <a class="wordmark footer-wordmark" href="#home"><span>STILL</span><i></i><span>LIGHT</span></a>
       <p>© <span id="currentYear">2026</span> <span id="footerName">你的名字</span></p>
       <a href="#home">回到顶部 ↑</a>
@@ -190,10 +191,13 @@
 
           <div class="upload-info">
             <span>照片信息</span>
-            <p>照片保存在当前浏览器；JPEG 会读取拍摄时间、GPS、设备、镜头、焦距、光圈、快门与 ISO。</p>
+            <p>作品保存在共享图库；JPEG 会读取拍摄时间、GPS、设备、镜头、焦距、光圈、快门与 ISO。</p>
           </div>
 
+          <button class="text-button" type="button" id="importLegacy">导入当前浏览器的旧作品</button>
+          <p class="upload-info-note">上传后会立即展示给访客；旧浏览器里的原始数据仍保留。</p>
           <div class="uploaded-list" id="uploadedList"></div>
+          <button class="text-button" type="button" id="studioLogout">退出管理员</button>
         </section>
 
         <section class="studio-tabpanel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>
