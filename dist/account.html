@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#080909" />
+  <title>我的账号 · 摄影作品集</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/account.css" />
+</head>
+<body class="account-page">
+  <main class="account-card glass-panel" aria-labelledby="accountTitle">
+    <a class="account-back" href="/">← 返回作品站</a>
+    <header class="account-heading">
+      <p class="eyebrow">YOUR PERSONAL STUDIO</p>
+      <h1 id="accountTitle">欢迎回来</h1>
+      <p id="accountIntro">让每一次按下快门，都有自己的归处。</p>
+    </header>
+
+    <div id="accountAuth" hidden>
+      <div class="account-tabs" role="tablist" aria-label="登录或注册">
+        <button id="loginTab" type="button" role="tab" aria-selected="true" aria-controls="loginPanel" tabindex="0">登录</button>
+        <button id="registerTab" type="button" role="tab" aria-selected="false" aria-controls="registerPanel" tabindex="-1">创建账号</button>
+      </div>
+
+      <section id="loginPanel" role="tabpanel" aria-labelledby="loginTab">
+        <form id="accountLogin" class="account-form">
+          <fieldset>
+            <label for="loginUsername">用户名</label>
+            <input id="loginUsername" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="24" placeholder="你的用户名" />
+            <label for="loginPassword">密码</label>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="256" placeholder="输入密码" />
+            <button class="account-primary" type="submit">进入我的工作台 <span aria-hidden="true">↗</span></button>
+          </fieldset>
+        </form>
+        <p class="account-small-note">站点管理员也可以使用用户名 <span lang="en">admin</span> 登录。</p>
+      </section>
+
+      <section id="registerPanel" role="tabpanel" aria-labelledby="registerTab" hidden>
+        <form id="accountRegister" class="account-form">
+          <fieldset>
+            <label for="registerName">展示名称</label>
+            <input id="registerName" name="name" type="text" autocomplete="nickname" required maxlength="30" placeholder="如何称呼你" />
+            <label for="registerUsername">用户名 <span class="account-label-note">用于你的公开主页，创建后不可修改</span></label>
+            <input id="registerUsername" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="24" pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" aria-describedby="usernameHelp usernamePreview" placeholder="例如 light_traveler" />
+            <p id="usernameHelp" class="account-field-help">3–24 位，以字母开头，仅含英文字母、数字或下划线；自动转为小写。</p>
+            <p id="usernamePreview" class="account-address-preview">你的主页 /u/username</p>
+            <label for="registerPassword">密码</label>
+            <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="256" aria-describedby="passwordHelp" placeholder="至少 12 位字符" />
+            <p id="passwordHelp" class="account-field-help">使用 12–256 位密码或长口令，请妥善保存。</p>
+            <label for="registerConfirm">确认密码</label>
+            <input id="registerConfirm" name="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256" placeholder="再次输入密码" />
+            <div class="account-public-note">
+              <span class="account-note-heading">一个属于你的公开作品集</span>
+              <p>上传的照片、个人资料及照片携带的拍摄参数、位置等信息会公开，任何访客都可浏览。请勿上传不希望公开的照片或位置信息。</p>
+            </div>
+            <button class="account-primary" type="submit">创建我的公开图库 <span aria-hidden="true">↗</span></button>
+          </fieldset>
+        </form>
+      </section>
+    </div>
+
+    <section id="accountDashboard" aria-label="我的工作台" hidden>
+      <p class="account-identity" id="accountIdentity"></p>
+      <div class="account-actions">
+        <a class="account-action" id="accountManage" href="/portfolio.html?manage=1"><span><strong>管理作品</strong><small>上传照片，整理自己的图库</small></span><span aria-hidden="true">↗</span></a>
+        <a class="account-action" id="accountProfile" href="/index.html?manage=profile"><span><strong>个人资料</strong><small>更新头像、简介与联系方式</small></span><span aria-hidden="true">↗</span></a>
+        <a class="account-action" id="accountPublic" href="/"><span><strong>查看公开主页</strong><small>浏览你的公开作品与足迹</small></span><span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="account-share">
+        <label for="accountPublicLink">你的公开主页</label>
+        <div class="account-share-row"><input id="accountPublicLink" type="text" readonly spellcheck="false" aria-label="公开主页地址" /><button id="accountCopy" type="button">复制链接</button></div>
+        <p class="account-field-help">任何人都可以访问；只有你登录后可以管理自己的图库。</p>
+      </div>
+      <button class="account-logout" id="accountLogout" type="button">退出登录</button>
+    </section>
+
+    <p id="accountMessage" class="account-message" role="status" aria-live="polite">正在检查登录状态…</p>
+    <noscript><p class="account-small-note">登录和注册需要启用 JavaScript。</p></noscript>
+    <footer class="account-footer"><span>每个人，都有自己的视角。</span><a href="/admin.html">站点管理</a></footer>
+  </main>
+  <script type="module" src="/account.js"></script>
+</body>
+</html>

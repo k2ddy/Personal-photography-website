@@ -2061,6 +2061,24 @@ dialog::backdrop {
 }
 
 .avatar-button:disabled { cursor: default; }
+.header-actions { display: flex; align-items: center; justify-self: end; gap: 10px; }
+.account-trigger { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 13px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
+.account-trigger svg { width: 17px; height: 17px; }
+.studio-account-links { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-top: 24px; }
+.studio-account-links a { color: #bcbab5; font-size: 11px; }
+.library-error { position: relative; z-index: 5; padding: 90px 24px 16px; margin: 0; color: #d6ad79; background: #121719; font-size: 13px; text-align: center; }
+.about-image-wrap.is-empty { background: radial-gradient(ellipse at 30% 35%, #1c2b34, #101315 75%); }
+@media (max-width: 900px) {
+  .account-trigger { width: 44px; height: 44px; padding: 0; }
+  .account-trigger > span { display: none; }
+  .header-actions { gap: 7px; }
+}
+@media (max-width: 420px) {
+  .site-header { padding-right: 14px; padding-left: 14px; }
+  .nav-link { padding: 10px 8px; font-size: 11px; }
+  .header-actions { gap: 5px; }
+  .header-actions .studio-trigger, .account-trigger { width: 36px; height: 36px; }
+}
 .site-footer { position: relative; }
 .admin-entry { position: absolute; right: clamp(20px, 4vw, 64px); bottom: 8px; color: #777; font-size: 9px; }
 .upload-info-note { color: #999; font-size: 10px; line-height: 1.7; }

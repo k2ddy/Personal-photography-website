@@ -7,13 +7,14 @@
   <meta name="theme-color" content="#080909" />
   <title>管理员 · 摄影作品集</title>
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./account.css" />
 </head>
 <body class="admin-page">
   <main class="admin-card glass-panel">
     <a class="admin-back" href="./index.html">← 返回作品站</a>
     <p class="eyebrow">PERSONAL STUDIO / ADMIN</p>
-    <h1>管理你的作品</h1>
-    <p class="admin-intro">登录后上传作品、整理图库与更新个人资料。</p>
+    <h1>站点管理员</h1>
+    <p class="admin-intro">这里管理作品站主人的图库。其他摄影师可创建自己的独立账号。</p>
     <form id="adminLogin" class="profile-form" hidden>
       <label><span>管理员密码</span><input type="password" name="password" autocomplete="current-password" required minlength="12" maxlength="256" /></label>
       <button class="save-profile" type="submit">登录工作台</button>
@@ -30,6 +31,12 @@
       <a class="admin-enter" href="./index.html?manage=profile">编辑个人资料 ↗</a>
       <button class="text-button" type="button" id="adminLogout">退出登录，切换为访客</button>
     </div>
+    <div id="adminOtherAccount" hidden>
+      <p id="adminOtherIdentity"></p>
+      <a class="admin-enter" href="./account.html">进入我的账号与图库 ↗</a>
+      <button class="text-button" type="button" id="adminSwitchAccount">退出当前账号，切换管理员</button>
+    </div>
+    <a class="admin-account-link" href="./account.html">摄影师登录 / 注册自己的图库 ↗</a>
     <p id="adminMessage" role="status">正在检查登录状态…</p>
   </main>
   <script type="module" src="./admin.js"></script>

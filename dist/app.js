@@ -117,7 +117,11 @@ let database;
 let uploadedPhotos = [];
 let activePhotos = [];
 let displayedPhotos = [];
-let isAdmin = false;
+let canManage = false;
+let sessionUser = null;
+let libraryOwner = null;
+const requestedUser = new URLSearchParams(location.search).get('user')?.toLowerCase() || '';
+const libraryEndpoint = `/api/library${requestedUser ? `?user=${encodeURIComponent(requestedUser)}` : ''}`;
 let sharedProfile = { ...defaultProfile };
 let sharedAvatar = null;
 const portfolioFilters = {
@@ -172,10 +176,18 @@ let provinceGeoData = null;
 let provincePhotoGroups = new Map();
 let selectedProvinceName = "";
 
-function setAdminMode(value) {
-  isAdmin = value;
-  document.body.classList.toggle('is-admin', value);
-  $$('[data-admin-only]').forEach(element => { element.hidden = !value; });
+function setManagementMode() {
+  const value = !!sessionUser && !!libraryOwner && sessionUser.id === libraryOwner.id;
+  canManage = value;
+  document.body.classList.toggle('is-owner', value);
+  $$('[data-owner-only]').forEach(element => { element.hidden = !value; });
+  // Legacy browser storage belongs to the original site owner, not every account on this device.
+  if ($('#importLegacy')) $('#importLegacy').hidden = !value || sessionUser?.role !== 'admin';
+  $$('[data-account-link]').forEach(link => {
+    link.setAttribute('aria-label', sessionUser ? '我的账号' : '登录或注册账号');
+    const label = $('[data-account-label]', link);
+    if (label) label.textContent = sessionUser ? '我的账号' : '登录 / 注册';
+  });
   const avatar = $('#avatarButton');
   if (avatar) {
     avatar.disabled = !value;
@@ -185,19 +197,32 @@ function setAdminMode(value) {
 }
 
 async function checkSession() {
-  try { setAdminMode((await api('/api/session')).admin); }
-  catch { setAdminMode(false); }
+  try { sessionUser = (await api('/api/session')).user; }
+  catch { sessionUser = null; }
+  setManagementMode();
+}
+
+function scopePageLinks() {
+  if (!requestedUser) return;
+  const pages = new Set(['/index.html', '/portfolio.html', '/map.html', '/about.html']);
+  $$('a[href]').forEach(link => {
+    if (link.getAttribute('href').startsWith('#')) return;
+    const url = new URL(link.getAttribute('href'), location.href);
+    if (url.origin !== location.origin || !pages.has(url.pathname)) return;
+    url.searchParams.set('user', requestedUser);
+    link.href = `${url.pathname}${url.search}${url.hash}`;
+  });
 }
 
 async function publishPhoto(record) {
   const { blob, thumbnail, ...metadata } = record;
-  return api('/api/photos', { method:'POST', body: {
+  return api('/api/photos', { method:'POST', owner: libraryOwner.id, body: {
     image: await blobBase64(blob), thumbnail: await blobBase64(thumbnail || blob), metadata,
   } });
 }
 
 async function importLegacyPhotos() {
-  if (!isAdmin || uploadBusy) return;
+  if (!canManage || sessionUser?.role !== 'admin' || uploadBusy) return;
   uploadBusy = true;
   const button = $('#importLegacy'); button.disabled = true;
   let imported = 0;
@@ -252,16 +277,21 @@ function transactionDone(transaction) {
 }
 
 async function getStoredPhotos() {
-  const data = await api('/api/library');
-  sharedProfile = { ...defaultProfile, ...data.profile };
+  const data = await api(libraryEndpoint);
+  libraryOwner = data.owner;
+  const defaults = libraryOwner.id === 'admin' ? defaultProfile : { name: libraryOwner.name || libraryOwner.username, role: '', bio: '', location: '', email: '' };
+  sharedProfile = { ...defaults, ...data.profile };
   sharedAvatar = data.avatar;
+  setManagementMode();
   applyProfile(sharedProfile);
+  const pageName = $('.nav-link.is-active')?.textContent || '摄影作品';
+  document.title = `${sharedProfile.name} · ${pageName} · 留光`;
   await loadAvatar();
   return data.photos;
 }
 
 async function getStoredPhotoCount() {
-  return (await api('/api/library')).photos.length;
+  return (await api(libraryEndpoint)).photos.length;
 }
 
 async function getProfileAsset(id) {
@@ -394,7 +424,7 @@ function storedRecordToPhoto(record) {
     category: record.category || "未分类",
     categoryEn: "PERSONAL WORK",
     year: String(record.year || new Date().getFullYear()),
-    alt: record.alt || `${record.title || "摄影作品"}，由站点所有者上传`,
+    alt: record.alt || `${record.title || "摄影作品"}，摄影：${sharedProfile.name}`,
     isUploaded: true,
   };
 }
@@ -404,6 +434,7 @@ async function refreshLibrary({ resetHero = false } = {}) {
   revokePhotoObjectUrls();
   uploadedPhotos = records.map(storedRecordToPhoto);
   activePhotos = uploadedPhotos;
+  updateAboutPage();
 
   if (resetHero || heroIndex >= activePhotos.length) heroIndex = 0;
   renderFilterControls();
@@ -838,7 +869,7 @@ function closeLightbox() {
 }
 
 function openStudio(tab = "photos") {
-  if (!isAdmin) return;
+  if (!canManage) return;
   lastFocusedElement = document.activeElement;
   setStudioTab(tab);
   if (!studio.open) studio.showModal();
@@ -870,7 +901,7 @@ function unlockAfterDialog() {
 
 async function handlePhotoFiles(fileList) {
   const incoming = [...fileList];
-  if (!incoming.length || !isAdmin || uploadBusy) return;
+  if (!incoming.length || !canManage || uploadBusy) return;
 
   uploadBusy = true;
   photoInput.disabled = true;
@@ -944,9 +975,9 @@ async function handlePhotoFiles(fileList) {
 }
 
 async function deletePhoto(id) {
-  if (!isAdmin || !window.confirm("从公开图库中移除这张照片？访客将不再看到它。")) return;
+  if (!canManage || !window.confirm("从你的公开图库中移除这张照片？访客将不再看到它。")) return;
   try {
-    await api(`/api/photos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await api(`/api/photos/${encodeURIComponent(id)}`, { method: 'DELETE', owner: libraryOwner.id });
     await refreshLibrary({ resetHero: true });
   } catch (error) { uploadMessage.textContent = error.message; }
 }
@@ -959,7 +990,7 @@ function renderUploadedList() {
   if (!uploadedPhotos.length) {
     const empty = document.createElement("p");
     empty.className = "uploaded-empty";
-    empty.textContent = "尚未添加作品。上传后会同步显示给所有访客。";
+    empty.textContent = "尚未添加作品。上传后会展示在你的公开主页。";
     list.append(empty);
     return;
   }
@@ -1011,6 +1042,9 @@ function applyProfile(profile) {
   if ($("#aboutLocation")) $("#aboutLocation").textContent = profile.location;
   if ($("#footerName")) $("#footerName").textContent = profile.name;
   if ($("#avatarFallback")) $("#avatarFallback").textContent = initialsForName(profile.name);
+  for (const [selector, key] of [['#profileRole', 'role'], ['#profileBio', 'bio'], ['#profileLocation', 'location']]) {
+    if ($(selector)) $(selector).hidden = !profile[key];
+  }
 
   const contact = $("#contactButton");
   if (contact) {
@@ -1024,6 +1058,23 @@ function applyProfile(profile) {
     const field = profileForm?.elements.namedItem(key);
     if (field) field.value = value;
   }
+  updateAboutPage();
+}
+
+function updateAboutPage() {
+  if (!$('#aboutTitle') || !libraryOwner || libraryOwner.id === 'admin') return;
+  $('#aboutTitle').textContent = sharedProfile.name;
+  $('.about-lead').textContent = sharedProfile.bio || '关于创作的故事，正在慢慢写下。';
+  $('.about-note').textContent = sharedProfile.role || '摄影，让日常留下痕迹。';
+  $('#aboutLocation').textContent = sharedProfile.location || '未填写';
+  $$('.about-details > div').forEach(row => { row.hidden = !row.contains($('#aboutLocation')); });
+  const photo = uploadedPhotos[0];
+  const wrap = $('.about-image-wrap');
+  const image = $('img', wrap);
+  image.hidden = !photo;
+  wrap.classList.toggle('is-empty', !photo);
+  if (photo) { image.src = photo.src; image.alt = photo.alt; }
+  $('p', wrap).textContent = photo ? photo.title : 'STILL LIGHT / PERSONAL SPACE';
 }
 
 async function loadAvatar() {
@@ -1040,7 +1091,7 @@ async function loadAvatar() {
 
 async function saveAvatar(file) {
   const message = $("#profileMessage");
-  if (!file || !isAdmin || !file.type.startsWith("image/") || file.size > MAX_FILE_SIZE) {
+  if (!file || !canManage || !file.type.startsWith("image/") || file.size > MAX_FILE_SIZE) {
     message.textContent = "头像需要是 12 MB 以内的图片。";
     return;
   }
@@ -1048,7 +1099,7 @@ async function saveAvatar(file) {
   message.textContent = "正在优化头像…";
   try {
     const optimized = await optimizePhoto(file);
-    const result = await api('/api/avatar', { method:'PUT', body:{ image: await blobBase64(optimized.thumbnail) } });
+    const result = await api('/api/avatar', { method:'PUT', owner: libraryOwner.id, body:{ image: await blobBase64(optimized.thumbnail) } });
     sharedAvatar = result.avatar;
     await loadAvatar();
     message.textContent = "头像已更新。";
@@ -1062,20 +1113,20 @@ async function saveAvatar(file) {
 
 async function saveProfile(event) {
   event.preventDefault();
-  if (!isAdmin) return;
+  if (!canManage) return;
   const formData = new FormData(profileForm);
   const profile = {
-    name: String(formData.get("name") || "").trim() || defaultProfile.name,
-    role: String(formData.get("role") || "").trim() || defaultProfile.role,
-    bio: String(formData.get("bio") || "").trim() || defaultProfile.bio,
-    location: String(formData.get("location") || "").trim() || defaultProfile.location,
+    name: String(formData.get("name") || "").trim() || sharedProfile.name,
+    role: String(formData.get("role") || "").trim(),
+    bio: String(formData.get("bio") || "").trim(),
+    location: String(formData.get("location") || "").trim(),
     email: String(formData.get("email") || "").trim(),
   };
   const button = $(".save-profile", profileForm);
   const original = button.textContent;
   button.disabled = true;
   try {
-    sharedProfile = await api('/api/profile', { method:'PUT', body: profile });
+    sharedProfile = await api('/api/profile', { method:'PUT', owner: libraryOwner.id, body: profile });
     applyProfile(sharedProfile);
     $("#profileMessage").textContent = '资料已保存，访客将看到更新后的内容。';
   } catch (error) { $("#profileMessage").textContent = error.message; }
@@ -1166,18 +1217,18 @@ function setupDockEffect() {
 }
 
 function bindEvents() {
-  window.addEventListener('admin-session-expired', () => setAdminMode(false));
+  window.addEventListener('account-session-expired', () => { sessionUser = null; setManagementMode(); });
   window.addEventListener('focus', checkSession);
   window.addEventListener('pageshow', event => { if (event.persisted) checkSession(); });
   $('#importLegacy')?.addEventListener('click', importLegacyPhotos);
   $('#studioLogout')?.addEventListener('click', async () => {
-    try { await api('/api/logout', { method:'POST' }); setAdminMode(false); }
+    try { await api('/api/logout', { method:'POST' }); sessionUser = null; setManagementMode(); }
     catch (error) { uploadMessage.textContent = error.message; }
   });
   $("#provinceSelect")?.addEventListener("change", event => selectProvince(event.target.value));
   $("#heroNext")?.addEventListener("click", () => stepHero(1));
   $("#heroPrev")?.addEventListener("click", () => stepHero(-1));
-  $("#studioTrigger")?.addEventListener("click", () => openStudio("photos"));
+  $("#studioTrigger")?.addEventListener("click", () => openStudio(document.body.classList.contains('about-page') ? 'profile' : 'photos'));
   $$('[data-open-studio]').forEach((button) => button.addEventListener("click", () => openStudio("photos")));
   $("#avatarButton")?.addEventListener("click", () => openStudio("profile"));
   $$('[data-close-studio]').forEach((element) => element.addEventListener("click", closeStudio));
@@ -1267,6 +1318,7 @@ function bindEvents() {
 }
 
 async function init() {
+  scopePageLinks();
   createRevealObserver();
   bindEvents();
   setupDockEffect();
@@ -1280,12 +1332,17 @@ async function init() {
     await checkSession();
     await refreshLibrary({ resetHero: true });
     const manage = new URLSearchParams(location.search).get('manage');
-    if (isAdmin && manage) openStudio(manage === 'profile' ? 'profile' : 'photos');
+    if (canManage && manage) openStudio(manage === 'profile' ? 'profile' : 'photos');
   } catch (error) {
-    setAdminMode(false);
-    if (libraryStatus) libraryStatus.textContent = '图库暂时无法加载，请稍后刷新。';
-    if (heroTitle) heroTitle.textContent = '图库暂时无法加载';
-    if (heroMeta) heroMeta.textContent = '请稍后刷新。';
+    libraryOwner = null;
+    setManagementMode();
+    const description = error.status === 404 ? '这位摄影师的主页不存在。' : '图库暂时无法加载，请稍后刷新。';
+    const notice = document.createElement('p');
+    notice.className = 'library-error'; notice.setAttribute('role', 'alert'); notice.textContent = description;
+    $('main').prepend(notice);
+    if (libraryStatus) libraryStatus.textContent = description;
+    if (heroTitle) heroTitle.textContent = error.status === 404 ? '主页不存在' : '图库暂时无法加载';
+    if (heroMeta) heroMeta.textContent = description;
     uploadMessage.textContent = error.message;
     renderGallery();
     if (provinceMap) await renderProvinceMap();

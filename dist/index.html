@@ -28,12 +28,18 @@
         <a href="./about.html" class="nav-link" data-section="about">关于我</a>
       </nav>
 
-      <button class="studio-trigger glass-button" id="studioTrigger" data-admin-only hidden type="button" aria-haspopup="dialog">
+      <div class="header-actions">
+      <button class="studio-trigger glass-button" id="studioTrigger" data-owner-only hidden type="button" aria-haspopup="dialog" aria-label="添加作品">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14" />
         </svg>
         <span>添加作品</span>
       </button>
+      <a class="account-trigger glass-button" href="./account.html" data-account-link aria-label="登录或注册账号">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></svg>
+        <span data-account-label>登录 / 注册</span>
+      </a>
+      </div>
     </header>
 
     <main>
@@ -54,7 +60,7 @@
           <button class="avatar-button" id="avatarButton" disabled type="button" aria-label="更换个人头像">
             <span class="avatar-fallback" id="avatarFallback">YN</span>
             <img id="profileAvatar" alt="个人头像" hidden />
-            <span class="avatar-edit" data-admin-only hidden aria-hidden="true">+</span>
+            <span class="avatar-edit" data-owner-only hidden aria-hidden="true">+</span>
           </button>
           <div class="profile-copy">
             <p class="profile-kicker">PHOTOGRAPHER · VISUAL STORYTELLER</p>
@@ -121,14 +127,14 @@
 
         <div class="empty-gallery" id="emptyGallery" hidden>
           <p>暂时没有符合条件的作品。</p>
-          <button class="text-button" type="button" data-open-studio data-admin-only hidden>添加第一张作品 <span>↗</span></button>
+          <button class="text-button" type="button" data-open-studio data-owner-only hidden>添加第一张作品 <span>↗</span></button>
         </div>
       </section>
 
     </main>
 
     <footer class="site-footer">
-      <a class="admin-entry" href="./admin.html" aria-label="管理员登录">管理</a>
+      <a class="admin-entry" href="./account.html" data-account-link aria-label="登录或注册账号"><span data-account-label>登录 / 注册</span></a>
       <a class="wordmark footer-wordmark" href="#home"><span>STILL</span><i></i><span>LIGHT</span></a>
       <p>© <span id="currentYear">2026</span> <span id="footerName">你的名字</span></p>
       <a href="#home">回到顶部 ↑</a>
@@ -191,13 +197,13 @@
 
           <div class="upload-info">
             <span>照片信息</span>
-            <p>作品保存在共享图库；JPEG 会读取拍摄时间、GPS、设备、镜头、焦距、光圈、快门与 ISO。</p>
+            <p>作品保存在你的独立图库；JPEG 会读取拍摄时间、GPS、设备、镜头、焦距、光圈、快门与 ISO。</p>
           </div>
 
-          <button class="text-button" type="button" id="importLegacy">导入当前浏览器的旧作品</button>
-          <p class="upload-info-note">上传后会立即展示给访客；旧浏览器里的原始数据仍保留。</p>
+          <button class="text-button" type="button" id="importLegacy" hidden>导入当前浏览器的旧作品</button>
+          <p class="upload-info-note">作品仅存入你的图库，但会立即在个人主页公开。拍摄参数与 GPS 位置也会公开，请勿上传不希望公开的信息。</p>
           <div class="uploaded-list" id="uploadedList"></div>
-          <button class="text-button" type="button" id="studioLogout">退出管理员</button>
+          <div class="studio-account-links"><a href="./account.html">账号与主页链接 ↗</a><button class="text-button" type="button" id="studioLogout">退出登录</button></div>
         </section>
 
         <section class="studio-tabpanel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>

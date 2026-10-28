@@ -1,9 +1,13 @@
-export async function api(path, { method = 'GET', body } = {}) {
-  const response = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+export async function api(path, { method = 'GET', body, owner } = {}) {
+  const headers = body ? { 'Content-Type': 'application/json' } : {};
+  if (owner) headers['X-Portfolio-Owner'] = owner;
+  const response = await fetch(path, { method, credentials: 'same-origin', headers, body: body ? JSON.stringify(body) : undefined });
   const data = await response.json().catch(() => null);
   if (!response.ok || !data) {
-    if (response.status === 401) window.dispatchEvent(new Event('admin-session-expired'));
-    throw new Error(data?.error || '无法连接图库服务，请使用 npm start 启动网站');
+    if (response.status === 401 || response.status === 409 && owner) window.dispatchEvent(new Event('account-session-expired'));
+    const error = new Error(data?.error || '无法连接图库服务，请使用 npm start 启动网站');
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
